@@ -10,3 +10,7 @@ langchain-community
 langchain-text-splitters
 pypdf
 python-multipart
+pytest
+pytest-asyncio
+respx
+httpx
