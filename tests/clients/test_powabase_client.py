@@ -1,0 +1,129 @@
+import json
+
+import httpx
+import pytest
+import respx
+
+from app.clients.powabase_client import PowabaseClient
+
+BASE_URL = "https://example.p.powabase.ai"
+API_KEY = "test-key"
+
+
+def make_client() -> PowabaseClient:
+    return PowabaseClient(base_url=BASE_URL, api_key=API_KEY)
+
+
+@respx.mock
+async def test_upload_source_success():
+    route = respx.post(f"{BASE_URL}/api/sources/upload").mock(
+        return_value=httpx.Response(201, json={"id": "src-1", "extraction_status": "pending"})
+    )
+    client = make_client()
+
+    result = await client.upload_source("doc.pdf", b"%PDF-1.4 fake")
+
+    assert result == {"id": "src-1", "extraction_status": "pending"}
+    request = route.calls.last.request
+    assert request.headers["apikey"] == API_KEY
+    assert request.headers["Authorization"] == f"Bearer {API_KEY}"
+
+
+@respx.mock
+async def test_upload_source_duplicate_reuses_existing():
+    respx.post(f"{BASE_URL}/api/sources/upload").mock(
+        return_value=httpx.Response(
+            409, json={"error": "duplicate_source", "duplicate": {"id": "src-existing", "extraction_status": "extracted"}}
+        )
+    )
+    client = make_client()
+
+    result = await client.upload_source("doc.pdf", b"%PDF-1.4 fake")
+
+    assert result == {"id": "src-existing", "extraction_status": "extracted"}
+
+
+@respx.mock
+async def test_get_source():
+    respx.get(f"{BASE_URL}/api/sources/src-1").mock(
+        return_value=httpx.Response(200, json={"id": "src-1", "extraction_status": "extracted"})
+    )
+    client = make_client()
+
+    result = await client.get_source("src-1")
+
+    assert result["extraction_status"] == "extracted"
+
+
+@respx.mock
+async def test_add_source_to_kb():
+    respx.post(f"{BASE_URL}/api/knowledge-bases/kb-1/sources").mock(
+        return_value=httpx.Response(201, json={"id": "idx-1", "index_status": "pending"})
+    )
+    client = make_client()
+
+    result = await client.add_source_to_kb("kb-1", "src-1")
+
+    assert result == {"id": "idx-1", "index_status": "pending"}
+
+
+@respx.mock
+async def test_list_kb_sources():
+    respx.get(f"{BASE_URL}/api/knowledge-bases/kb-1/sources").mock(
+        return_value=httpx.Response(200, json={"items": [{"id": "idx-1", "index_status": "indexed"}], "total": 1})
+    )
+    client = make_client()
+
+    result = await client.list_kb_sources("kb-1")
+
+    assert result["items"][0]["index_status"] == "indexed"
+
+
+class _ChunkedStream(httpx.AsyncByteStream):
+    def __init__(self, chunks):
+        self._chunks = chunks
+
+    async def __aiter__(self):
+        for chunk in self._chunks:
+            yield chunk
+
+    async def aclose(self) -> None:
+        pass
+
+
+@respx.mock
+async def test_stream_agent_run_reassembles_lines_split_across_chunks():
+    respx.post(f"{BASE_URL}/api/agents/agent-1/run/stream").mock(
+        return_value=httpx.Response(
+            200,
+            stream=_ChunkedStream(
+                [
+                    b'data: {"event": "start", "session_id": "s1"}\n',
+                    b"\n: keepalive\n\ndata: {\"eve",
+                    b'nt": "complete", "content": "hi"}\n\n',
+                ]
+            ),
+        )
+    )
+    client = make_client()
+
+    lines = [line async for line in client.stream_agent_run("agent-1", message="hello")]
+
+    assert lines == [
+        'data: {"event": "start", "session_id": "s1"}',
+        'data: {"event": "complete", "content": "hi"}',
+    ]
+
+
+@respx.mock
+async def test_stream_agent_run_yields_error_event_on_http_error():
+    respx.post(f"{BASE_URL}/api/agents/agent-1/run/stream").mock(
+        return_value=httpx.Response(503, json={"error": "billing service unreachable"})
+    )
+    client = make_client()
+
+    lines = [line async for line in client.stream_agent_run("agent-1", message="hello")]
+
+    assert len(lines) == 1
+    payload = json.loads(lines[0][len("data: "):])
+    assert payload["event"] == "error"
