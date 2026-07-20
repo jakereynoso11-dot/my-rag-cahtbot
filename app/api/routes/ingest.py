@@ -29,7 +29,12 @@ async def ingest_file(
     except PollTimeoutError as e:
         raise HTTPException(status_code=504, detail=str(e))
     except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=502, detail=f"Powabase request failed: {e}")
+        if e.response.status_code in (402, 503):
+            raise HTTPException(status_code=e.response.status_code, detail=f"Powabase request failed: {e}")
+        else:
+            raise HTTPException(status_code=502, detail=f"Powabase request failed: {e}")
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Powabase unreachable: {e}")
 
     return IngestResponse(
         source_id=result.source_id,

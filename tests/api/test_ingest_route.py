@@ -83,3 +83,48 @@ def test_ingest_file_upstream_http_error_returns_502():
     )
 
     assert response.status_code == 502
+
+
+def test_ingest_file_powabase_insufficient_credits_returns_402():
+    service = FakeIngestService(
+        error=httpx.HTTPStatusError(
+            "insufficient_credits", request=httpx.Request("POST", "https://x/api/sources/upload"),
+            response=httpx.Response(402, request=httpx.Request("POST", "https://x")),
+        )
+    )
+    app.dependency_overrides[get_ingest_service] = lambda: service
+
+    response = client.post(
+        "/ingest/file", files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")}
+    )
+
+    assert response.status_code == 402
+
+
+def test_ingest_file_powabase_service_unavailable_returns_503():
+    service = FakeIngestService(
+        error=httpx.HTTPStatusError(
+            "service_unavailable", request=httpx.Request("POST", "https://x/api/sources/upload"),
+            response=httpx.Response(503, request=httpx.Request("POST", "https://x")),
+        )
+    )
+    app.dependency_overrides[get_ingest_service] = lambda: service
+
+    response = client.post(
+        "/ingest/file", files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")}
+    )
+
+    assert response.status_code == 503
+
+
+def test_ingest_file_connection_error_returns_502():
+    service = FakeIngestService(
+        error=httpx.ConnectError("connection failed", request=httpx.Request("POST", "https://x"))
+    )
+    app.dependency_overrides[get_ingest_service] = lambda: service
+
+    response = client.post(
+        "/ingest/file", files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")}
+    )
+
+    assert response.status_code == 502
