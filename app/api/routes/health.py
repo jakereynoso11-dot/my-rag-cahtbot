@@ -8,7 +8,7 @@ router = APIRouter(tags=["health"])
 def health():
     return {
         "status": "ok",
-        "supabase_table": settings.supabase_table,
-        "match_function": settings.supabase_match_fn,
-        "model": settings.openai_model,
+        "powabase_base_url": settings.powabase_base_url,
+        "knowledge_base_id": settings.powabase_kb_id,
+        "agent_id": settings.powabase_agent_id,
     }
