@@ -1,15 +1,18 @@
 import httpx
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.deps import get_ingest_service
-from app.main import app
+from app.api.routes.ingest import router as ingest_router
 from app.services.ingest_service import (
     ExtractionNotUsableError,
     IngestResult,
     PollTimeoutError,
 )
 
+app = FastAPI()
+app.include_router(ingest_router)
 client = TestClient(app)
 
 
@@ -22,12 +25,6 @@ class FakeIngestService:
         if self._error:
             raise self._error
         return self._result
-
-
-def override(service):
-    app.dependency_overrides[get_ingest_service] = lambda: service
-    yield
-    app.dependency_overrides.pop(get_ingest_service, None)
 
 
 @pytest.fixture(autouse=True)
