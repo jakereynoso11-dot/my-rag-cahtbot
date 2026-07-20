@@ -1,46 +1,23 @@
-from typing import List
+from typing import AsyncIterator, Optional
 
-from openai import OpenAI
-from langchain_core.documents import Document
+from app.clients.powabase_client import PowabaseClient
 
 
 class ChatService:
-    def __init__(self, openai_client: OpenAI):
-        self.client = openai_client
+    def __init__(self, client: PowabaseClient, agent_id: str):
+        self.client = client
+        self.agent_id = agent_id
 
-    def _build_messages(self, user_query: str, docs: List[Document]) -> List[dict]:
-        context = "\n\n---\n\n".join(d.page_content for d in docs if d.page_content)
-
-        system_content = (
-            "You are a helpful assistant. Use the provided context to answer. "
-            "If the context is insufficient, say so."
-        )
-
-        user_content = (
-            f"User question:\n{user_query}\n\n"
-            f"Context (retrieved):\n{context}"
-        )
-
-        return [
-            {"role": "system", "content": system_content},
-            {"role": "user", "content": user_content},
-        ]
-
-    def answer(
+    async def stream_answer(
         self,
         query: str,
-        retrieved_docs: List[Document],
-        model: str,
-        max_output_tokens: int,
-        temperature: float,
-    ) -> str:
-        messages = self._build_messages(query, retrieved_docs)
-
-        resp = self.client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=max_output_tokens,
+        session_id: Optional[str] = None,
+        temperature: Optional[float] = None,
+    ) -> AsyncIterator[str]:
+        async for line in self.client.stream_agent_run(
+            self.agent_id,
+            message=query,
+            session_id=session_id,
             temperature=temperature,
-        )
-
-        return resp.choices[0].message.content
+        ):
+            yield f"{line}\n\n"
