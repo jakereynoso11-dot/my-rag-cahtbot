@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-dotenv
+pydantic
+pydantic-settings
+openai
+supabase
+langchain-openai
+langchain-community
+langchain-text-splitters
+pypdf
+python-multipart
