@@ -1,41 +1,93 @@
-import os
-from typing import List
+import asyncio
+from dataclasses import dataclass
+from typing import Optional
 
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import CharacterTextSplitter
-from langchain_core.documents import Document
+from app.clients.powabase_client import PowabaseClient
 
-from langchain_community.vectorstores import SupabaseVectorStore
-from supabase.client import Client
-from langchain_openai import OpenAIEmbeddings
+EXTRACTION_TERMINAL = {"extracted", "attention_required", "failed", "cancelled"}
+EXTRACTION_USABLE = {"extracted"}
+INDEX_TERMINAL = {"indexed", "failed", "cancelled"}
 
-from app.core.config import settings
+
+class ExtractionNotUsableError(Exception):
+    def __init__(self, source_id: str, status: str):
+        self.source_id = source_id
+        self.status = status
+        super().__init__(
+            f"Source {source_id} extraction ended in unusable status: {status}"
+        )
+
+
+class PollTimeoutError(Exception):
+    def __init__(self, stage: str, resource_id: str):
+        self.stage = stage
+        self.resource_id = resource_id
+        super().__init__(f"Timed out waiting for {stage} on {resource_id}")
+
+
+@dataclass
+class IngestResult:
+    source_id: str
+    indexed_source_id: str
+    status: str
 
 
 class IngestService:
-    def __init__(self, supabase: Client, embeddings: OpenAIEmbeddings):
-        self.vector_store = SupabaseVectorStore(
-            client=supabase,
-            embedding=embeddings,
-            table_name=settings.supabase_table,
-            query_name=settings.supabase_match_fn,
+    def __init__(
+        self,
+        client: PowabaseClient,
+        kb_id: str,
+        poll_interval: float = 2.0,
+        poll_timeout: float = 120.0,
+    ):
+        self.client = client
+        self.kb_id = kb_id
+        self.poll_interval = poll_interval
+        self.poll_timeout = poll_timeout
+
+    async def _wait_for_extraction(self, source_id: str) -> str:
+        elapsed = 0.0
+        while True:
+            source = await self.client.get_source(source_id)
+            status = source["extraction_status"]
+            if status in EXTRACTION_TERMINAL:
+                return status
+            if elapsed >= self.poll_timeout:
+                raise PollTimeoutError("extraction", source_id)
+            await asyncio.sleep(self.poll_interval)
+            elapsed += self.poll_interval
+
+    async def _wait_for_indexing(self, indexed_source_id: str) -> str:
+        elapsed = 0.0
+        while True:
+            listing = await self.client.list_kb_sources(self.kb_id)
+            match = next(
+                (item for item in listing["items"] if item["id"] == indexed_source_id),
+                None,
+            )
+            status = match["index_status"] if match else None
+            if status in INDEX_TERMINAL:
+                return status
+            if elapsed >= self.poll_timeout:
+                raise PollTimeoutError("indexing", indexed_source_id)
+            await asyncio.sleep(self.poll_interval)
+            elapsed += self.poll_interval
+
+    async def ingest_pdf(self, filename: str, content: bytes) -> IngestResult:
+        uploaded = await self.client.upload_source(filename, content)
+        source_id = uploaded["id"]
+
+        extraction_status = await self._wait_for_extraction(source_id)
+        if extraction_status not in EXTRACTION_USABLE:
+            raise ExtractionNotUsableError(source_id, extraction_status)
+
+        added = await self.client.add_source_to_kb(self.kb_id, source_id)
+        indexed_source_id = added["id"]
+
+        index_status = await self._wait_for_indexing(indexed_source_id)
+
+        return IngestResult(
+            source_id=source_id,
+            indexed_source_id=indexed_source_id,
+            status=index_status,
         )
-
-    def _split(self, docs: List[Document], chunk_size: int, chunk_overlap: int) -> List[Document]:
-        splitter = CharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-        return splitter.split_documents(docs)
-
-    def ingest_pdf_path(self, pdf_path: str, chunk_size: int, chunk_overlap: int) -> int:
-        loader = PyPDFLoader(pdf_path)
-        raw_docs = loader.load()
-        chunks = self._split(raw_docs, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-        self.vector_store.add_documents(chunks)
-        return len(chunks)
-
-    def save_upload_to_tmp(self, filename: str, content: bytes) -> str:
-        os.makedirs(settings.tmp_dir, exist_ok=True)
-        safe_name = os.path.basename(filename)
-        tmp_path = os.path.join(settings.tmp_dir, safe_name)
-        with open(tmp_path, "wb") as f:
-            f.write(content)
-        return tmp_path
