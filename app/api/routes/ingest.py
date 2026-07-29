@@ -1,29 +1,46 @@
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.api.deps import get_ingest_service
-from app.models.schemas import IngestResponse
-from app.services.ingest_service import (
-    ExtractionNotUsableError,
-    IngestService,
-    PollTimeoutError,
-)
+from app.api.deps import get_bearer_token, get_postgrest_client, get_powabase_client
+from app.clients.postgrest_client import PostgrestClient
+from app.clients.powabase_client import PowabaseClient
+from app.core.config import settings
+from app.models.schemas import ChatbotDocumentIngestResponse
+from app.services.document_ingestion import get_chatbot_agent_id, ingest_document_for_chatbot
+from app.services.ingest_service import ExtractionNotUsableError, PollTimeoutError
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
 
-@router.post("/file", response_model=IngestResponse)
+@router.post("/file", response_model=ChatbotDocumentIngestResponse)
 async def ingest_file(
+    chatbot_id: str = Form(...),
     file: UploadFile = File(...),
-    ingest_service: IngestService = Depends(get_ingest_service),
+    access_token: str = Depends(get_bearer_token),
+    postgrest: PostgrestClient = Depends(get_postgrest_client),
+    powabase: PowabaseClient = Depends(get_powabase_client),
 ):
     try:
         content = await file.read()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not read uploaded file: {e}")
 
+    agent_id = await get_chatbot_agent_id(chatbot_id, access_token, postgrest)
+    if not agent_id:
+        raise HTTPException(status_code=404, detail=f"Chatbot not found: {chatbot_id}")
+
     try:
-        result = await ingest_service.ingest_pdf(file.filename, content)
+        result = await ingest_document_for_chatbot(
+            content=content,
+            filename=file.filename,
+            mime_type=file.content_type,
+            chatbot_id=chatbot_id,
+            agent_id=agent_id,
+            access_token=access_token,
+            service_role_key=settings.powabase_api_key,
+            postgrest=postgrest,
+            powabase=powabase,
+        )
     except ExtractionNotUsableError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except PollTimeoutError as e:
@@ -36,8 +53,9 @@ async def ingest_file(
     except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"Powabase unreachable: {e}")
 
-    return IngestResponse(
-        source_id=result.source_id,
-        indexed_source_id=result.indexed_source_id,
-        status=result.status,
+    return ChatbotDocumentIngestResponse(
+        document_id=result.document_id,
+        is_new=result.is_new,
+        index_status=result.index_status,
+        chatbot_document_id=result.chatbot_document_id,
     )
