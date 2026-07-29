@@ -35,7 +35,6 @@ def create_kb_and_agent(base_url: str, api_key: str) -> tuple[str, str]:
             headers=headers,
             json={
                 "name": "rag-chatbot-agent",
-                "model": "gpt-4o-mini",
                 "system_prompt": SYSTEM_PROMPT,
                 "settings": {"temperature": 0.4},
             },
