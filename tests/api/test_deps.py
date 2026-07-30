@@ -1,7 +1,9 @@
-from app.api.deps import get_chat_service, get_ingest_service, get_powabase_client
+import pytest
+from fastapi import HTTPException
+
+from app.api.deps import get_bearer_token, get_postgrest_client, get_powabase_client
+from app.clients.postgrest_client import PostgrestClient
 from app.clients.powabase_client import PowabaseClient
-from app.services.chat_service import ChatService
-from app.services.ingest_service import IngestService
 
 
 def test_get_powabase_client_uses_settings(monkeypatch):
@@ -17,25 +19,34 @@ def test_get_powabase_client_uses_settings(monkeypatch):
     assert client.headers["apikey"] == "key-123"
 
 
-def test_get_ingest_service_wires_kb_id(monkeypatch):
+def test_get_postgrest_client_uses_settings(monkeypatch):
     import app.core.config as config_module
 
-    monkeypatch.setattr(config_module.settings, "powabase_kb_id", "kb-123")
-    client = PowabaseClient(base_url="https://x.p.powabase.ai", api_key="key")
+    monkeypatch.setattr(config_module.settings, "powabase_base_url", "https://x.p.powabase.ai")
+    monkeypatch.setattr(config_module.settings, "powabase_api_key", "key-123")
 
-    service = get_ingest_service(client=client)
+    client = get_postgrest_client()
 
-    assert isinstance(service, IngestService)
-    assert service.kb_id == "kb-123"
+    assert isinstance(client, PostgrestClient)
+    assert client.base_url == "https://x.p.powabase.ai"
+    assert client.api_key == "key-123"
 
 
-def test_get_chat_service_wires_agent_id(monkeypatch):
-    import app.core.config as config_module
+def test_get_bearer_token_extracts_token():
+    token = get_bearer_token(authorization="Bearer abc123")
 
-    monkeypatch.setattr(config_module.settings, "powabase_agent_id", "agent-123")
-    client = PowabaseClient(base_url="https://x.p.powabase.ai", api_key="key")
+    assert token == "abc123"
 
-    service = get_chat_service(client=client)
 
-    assert isinstance(service, ChatService)
-    assert service.agent_id == "agent-123"
+def test_get_bearer_token_rejects_missing_header():
+    with pytest.raises(HTTPException) as exc_info:
+        get_bearer_token(authorization=None)
+
+    assert exc_info.value.status_code == 401
+
+
+def test_get_bearer_token_rejects_non_bearer_scheme():
+    with pytest.raises(HTTPException) as exc_info:
+        get_bearer_token(authorization="Basic abc123")
+
+    assert exc_info.value.status_code == 401

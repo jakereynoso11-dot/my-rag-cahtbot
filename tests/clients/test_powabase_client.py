@@ -79,6 +79,69 @@ async def test_list_kb_sources():
     assert result["items"][0]["index_status"] == "indexed"
 
 
+@respx.mock
+async def test_create_knowledge_base():
+    route = respx.post(f"{BASE_URL}/api/knowledge-bases").mock(
+        return_value=httpx.Response(201, json={"id": "kb-new"})
+    )
+    client = make_client()
+
+    result = await client.create_knowledge_base("user-1-kb")
+
+    assert result == {"id": "kb-new"}
+    payload = json.loads(route.calls.last.request.content)
+    assert payload["name"] == "user-1-kb"
+    assert payload["indexing_config"]["strategy"] == "chunk_embed"
+    assert payload["retrieval_config"]["method"] == "hybrid"
+
+
+@respx.mock
+async def test_create_agent():
+    route = respx.post(f"{BASE_URL}/api/agents").mock(
+        return_value=httpx.Response(201, json={"id": "agent-new"})
+    )
+    client = make_client()
+
+    result = await client.create_agent("user-1-agent", "system prompt")
+
+    assert result == {"id": "agent-new"}
+    payload = json.loads(route.calls.last.request.content)
+    assert payload == {
+        "name": "user-1-agent",
+        "model": "claude-haiku-4-5",
+        "system_prompt": "system prompt",
+    }
+
+
+@respx.mock
+async def test_add_knowledge_base_to_agent():
+    route = respx.post(f"{BASE_URL}/api/agents/agent-1/knowledge-bases").mock(
+        return_value=httpx.Response(201, json={"id": "link-1"})
+    )
+    client = make_client()
+
+    result = await client.add_knowledge_base_to_agent("agent-1", "kb-1")
+
+    assert result == {"id": "link-1"}
+    payload = json.loads(route.calls.last.request.content)
+    assert payload == {"knowledge_base_id": "kb-1"}
+
+
+@respx.mock
+async def test_get_user():
+    route = respx.get(f"{BASE_URL}/auth/v1/user").mock(
+        return_value=httpx.Response(200, json={"id": "user-1", "email": "a@example.com"})
+    )
+    client = make_client()
+
+    result = await client.get_user("user-jwt-token")
+
+    assert result == {"id": "user-1", "email": "a@example.com"}
+    request = route.calls.last.request
+    assert request.headers["apikey"] == API_KEY
+    assert request.headers["Authorization"] == "Bearer user-jwt-token"
+
+
 class _ChunkedStream(httpx.AsyncByteStream):
     def __init__(self, chunks):
         self._chunks = chunks

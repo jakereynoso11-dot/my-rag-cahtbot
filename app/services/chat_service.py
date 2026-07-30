@@ -15,6 +15,7 @@ class ChatRunFailedError(Exception):
 class ChatAnswer:
     answer: str
     sources: list = field(default_factory=list)
+    powabase_session_id: Optional[str] = None
 
 
 class ChatService:
@@ -29,6 +30,7 @@ class ChatService:
         temperature: Optional[float] = None,
     ) -> ChatAnswer:
         content = ""
+        powabase_session_id = session_id
 
         async for line in self.client.stream_agent_run(
             self.agent_id,
@@ -44,9 +46,12 @@ class ChatService:
             if event == "error":
                 raise ChatRunFailedError(payload.get("message") or "Powabase run failed")
 
+            if event == "start" and payload.get("session_id"):
+                powabase_session_id = payload["session_id"]
+
             if event == "complete":
                 if payload.get("status") == "failed":
                     raise ChatRunFailedError(payload.get("error") or "Powabase run failed")
                 content = payload.get("content", "")
 
-        return ChatAnswer(answer=content)
+        return ChatAnswer(answer=content, powabase_session_id=powabase_session_id)

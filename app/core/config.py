@@ -7,8 +7,6 @@ class Settings(BaseSettings):
     # Powabase
     powabase_base_url: str
     powabase_api_key: str
-    powabase_kb_id: str
-    powabase_agent_id: str
 
 
 settings = Settings()

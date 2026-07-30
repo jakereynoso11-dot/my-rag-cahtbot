@@ -51,6 +51,57 @@ class PowabaseClient:
         resp.raise_for_status()
         return resp.json()
 
+    async def create_knowledge_base(self, name: str) -> dict:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{self.base_url}/api/knowledge-bases",
+                headers=self.headers,
+                json={
+                    "name": name,
+                    "indexing_config": {
+                        "strategy": "chunk_embed",
+                        "chunk_size": 1000,
+                        "chunk_overlap": 200,
+                    },
+                    "retrieval_config": {"method": "hybrid", "top_k": 4},
+                },
+            )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def create_agent(self, name: str, system_prompt: str) -> dict:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{self.base_url}/api/agents",
+                headers=self.headers,
+                json={
+                    "name": name,
+                    "model": "claude-haiku-4-5",
+                    "system_prompt": system_prompt,
+                },
+            )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def add_knowledge_base_to_agent(self, agent_id: str, kb_id: str) -> dict:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{self.base_url}/api/agents/{agent_id}/knowledge-bases",
+                headers=self.headers,
+                json={"knowledge_base_id": kb_id},
+            )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_user(self, access_token: str) -> dict:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                f"{self.base_url}/auth/v1/user",
+                headers={**self.headers, "Authorization": f"Bearer {access_token}"},
+            )
+        resp.raise_for_status()
+        return resp.json()
+
     async def stream_agent_run(
         self,
         agent_id: str,

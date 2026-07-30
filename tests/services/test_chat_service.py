@@ -32,6 +32,7 @@ async def test_get_answer_returns_content_from_complete_event():
 
     assert result.answer == "hi there"
     assert result.sources == []
+    assert result.powabase_session_id == "s1"
 
 
 async def test_get_answer_passes_query_session_and_temperature_through():

@@ -3,10 +3,11 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-class IngestResponse(BaseModel):
-    source_id: str
-    indexed_source_id: str
-    status: str
+class DocumentResponse(BaseModel):
+    document_id: str
+    is_new: bool
+    index_status: str
+    chatbot_document_id: str
 
 
 class ChatRequest(BaseModel):
@@ -18,3 +19,4 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     sources: list = []
+    session_id: str
