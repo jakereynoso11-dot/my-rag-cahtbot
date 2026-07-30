@@ -9,13 +9,6 @@ class IngestResponse(BaseModel):
     status: str
 
 
-class ChatbotDocumentIngestResponse(BaseModel):
-    document_id: str
-    is_new: bool
-    index_status: str
-    chatbot_document_id: str
-
-
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1)
     session_id: Optional[str] = None
