@@ -15,7 +15,7 @@ async def chat(
 ):
     return StreamingResponse(
         chat_service.stream_answer(
-            query=req.query,
+            query=req.message,
             session_id=req.session_id,
             temperature=req.temperature,
         ),

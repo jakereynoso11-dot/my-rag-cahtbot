@@ -17,6 +17,6 @@ class ChatbotDocumentIngestResponse(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    query: str = Field(..., min_length=1)
+    message: str = Field(..., min_length=1)
     session_id: Optional[str] = None
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)

@@ -33,7 +33,7 @@ def test_chat_streams_sse_chunks_through():
     )
     app.dependency_overrides[get_chat_service] = lambda: service
 
-    response = client.post("/chat", json={"query": "hello"})
+    response = client.post("/chat", json={"message": "hello"})
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
@@ -47,12 +47,12 @@ def test_chat_passes_session_id_and_temperature_through():
     service = FakeChatService(chunks=[])
     app.dependency_overrides[get_chat_service] = lambda: service
 
-    client.post("/chat", json={"query": "hello", "session_id": "s1", "temperature": 0.2})
+    client.post("/chat", json={"message": "hello", "session_id": "s1", "temperature": 0.2})
 
     assert service.last_call == {"query": "hello", "session_id": "s1", "temperature": 0.2}
 
 
 def test_chat_rejects_empty_query():
-    response = client.post("/chat", json={"query": ""})
+    response = client.post("/chat", json={"message": ""})
 
     assert response.status_code == 422
