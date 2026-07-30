@@ -13,3 +13,8 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1)
     session_id: Optional[str] = None
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list = []
