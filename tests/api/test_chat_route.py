@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.api.deps import get_current_user, get_postgrest_client, get_powabase_client
 from app.api.routes.chat import router as chat_router
+from app.clients.powabase_client import AgentNotFoundError
 
 app = FastAPI()
 app.include_router(chat_router)
@@ -42,18 +43,30 @@ class FakePostgrestClient:
             return [
                 {"id": "m1", "role": "user", "content": "hi", "created_at": "2026-01-01T00:00:00Z"}
             ]
+        if table == "chatbot_documents":
+            return [{"documents": {"powabase_knowledge_base_id": "kb-1"}}]
         raise AssertionError(f"unexpected select on {table}")
 
 
 class FakePowabaseClient:
-    def __init__(self, lines=None):
+    def __init__(self, lines=None, not_found_for_agent_id=None, lines_after_recovery=None):
         self._lines = lines or []
+        self._not_found_for_agent_id = not_found_for_agent_id
+        self._lines_after_recovery = lines_after_recovery or []
+        self.link_agent_calls = []
 
     async def create_agent(self, name, system_prompt):
-        return {"id": "agent-new"}
+        return {"id": "agent-recovered"}
+
+    async def add_knowledge_base_to_agent(self, agent_id, kb_id):
+        self.link_agent_calls.append((agent_id, kb_id))
+        return {"id": "link-1"}
 
     async def stream_agent_run(self, agent_id, message, session_id=None, temperature=None):
-        for line in self._lines:
+        if agent_id == self._not_found_for_agent_id:
+            raise AgentNotFoundError(agent_id)
+        lines = self._lines_after_recovery if agent_id == "agent-recovered" else self._lines
+        for line in lines:
             yield line
 
 
@@ -142,6 +155,33 @@ def test_chat_returns_502_on_run_failure():
     )
 
     assert response.status_code == 502
+
+
+def test_chat_recovers_and_retries_when_stored_agent_was_deleted():
+    postgrest = FakePostgrestClient()
+    powabase = FakePowabaseClient(
+        not_found_for_agent_id="agent-1",
+        lines_after_recovery=[
+            'data: {"event": "start", "session_id": "powabase-sess-2"}',
+            'data: {"event": "complete", "status": "completed", "content": "back online"}',
+        ],
+    )
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: powabase
+
+    response = client.post(
+        "/chat", json={"message": "hello"}, headers={"Authorization": "Bearer test-token"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["answer"] == "back online"
+    assert powabase.link_agent_calls == [("agent-recovered", "kb-1")]
+    assert (
+        "chatbots",
+        {"id": "chatbot-1"},
+        {"powabase_agent_id": "agent-recovered"},
+    ) in postgrest.update_calls
 
 
 def test_list_sessions_returns_rows_for_own_chatbot():

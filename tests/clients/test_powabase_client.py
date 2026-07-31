@@ -4,7 +4,7 @@ import httpx
 import pytest
 import respx
 
-from app.clients.powabase_client import PowabaseClient
+from app.clients.powabase_client import AgentNotFoundError, PowabaseClient
 
 BASE_URL = "https://example.p.powabase.ai"
 API_KEY = "test-key"
@@ -190,3 +190,17 @@ async def test_stream_agent_run_yields_error_event_on_http_error():
     assert len(lines) == 1
     payload = json.loads(lines[0][len("data: "):])
     assert payload["event"] == "error"
+
+
+@respx.mock
+async def test_stream_agent_run_raises_agent_not_found_on_404():
+    respx.post(f"{BASE_URL}/api/agents/agent-1/run/stream").mock(
+        return_value=httpx.Response(404, json={"error": "not_found"})
+    )
+    client = make_client()
+
+    with pytest.raises(AgentNotFoundError) as exc_info:
+        async for _ in client.stream_agent_run("agent-1", message="hello"):
+            pass
+
+    assert exc_info.value.agent_id == "agent-1"
