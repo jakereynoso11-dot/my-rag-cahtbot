@@ -4,6 +4,12 @@ from typing import Any, AsyncIterator, Optional
 import httpx
 
 
+class AgentNotFoundError(Exception):
+    def __init__(self, agent_id: str):
+        self.agent_id = agent_id
+        super().__init__(f"Powabase agent {agent_id} not found")
+
+
 class PowabaseClient:
     def __init__(self, base_url: str, api_key: str):
         self.base_url = base_url.rstrip("/")
@@ -133,6 +139,13 @@ class PowabaseClient:
                             if not line or line.startswith(":"):
                                 continue
                             yield line
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                raise AgentNotFoundError(agent_id) from exc
+            error_payload = json.dumps(
+                {"event": "error", "message": f"Powabase request failed: {exc}"}
+            )
+            yield f"data: {error_payload}"
         except httpx.HTTPError as exc:
             error_payload = json.dumps(
                 {"event": "error", "message": f"Powabase request failed: {exc}"}
