@@ -2,7 +2,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_current_user, get_postgrest_client, get_powabase_client
+from app.api.deps import get_current_user, get_postgrest_client
 from app.api.routes.documents import router as documents_router
 
 app = FastAPI()
@@ -10,9 +10,16 @@ app.include_router(documents_router)
 client = TestClient(app)
 
 
+_DEFAULT_CHATBOT_ROW = object()
+
+
 class FakePostgrestClient:
-    def __init__(self, rows):
-        self.chatbot_row = {"id": "chatbot-1", "powabase_agent_id": "agent-1"}
+    def __init__(self, rows, chatbot_row=_DEFAULT_CHATBOT_ROW):
+        self.chatbot_row = (
+            {"id": "chatbot-1", "powabase_agent_id": "agent-1"}
+            if chatbot_row is _DEFAULT_CHATBOT_ROW
+            else chatbot_row
+        )
         self._rows = rows
         self.select_calls = []
 
@@ -24,17 +31,13 @@ class FakePostgrestClient:
         return self._rows
 
 
-class FakePowabaseClient:
-    pass
-
-
 @pytest.fixture(autouse=True)
 def clear_overrides():
     yield
     app.dependency_overrides.clear()
 
 
-def test_list_documents_returns_rows_for_own_chatbot():
+def test_list_documents_returns_rows_for_given_chatbot():
     rows = [
         {
             "id": "cd-1",
@@ -46,16 +49,43 @@ def test_list_documents_returns_rows_for_own_chatbot():
     postgrest = FakePostgrestClient(rows)
     app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
     app.dependency_overrides[get_postgrest_client] = lambda: postgrest
-    app.dependency_overrides[get_powabase_client] = lambda: FakePowabaseClient()
 
-    response = client.get("/documents", headers={"Authorization": "Bearer test-token"})
+    response = client.get(
+        "/documents",
+        params={"chatbot_id": "chatbot-1"},
+        headers={"Authorization": "Bearer test-token"},
+    )
 
     assert response.status_code == 200
     assert response.json() == rows
     assert postgrest.select_calls[0][2] == {"chatbot_id": "chatbot-1"}
 
 
+def test_list_documents_requires_chatbot_id():
+    postgrest = FakePostgrestClient(rows=[])
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.get("/documents", headers={"Authorization": "Bearer test-token"})
+
+    assert response.status_code == 422
+
+
+def test_list_documents_returns_404_when_chatbot_not_owned():
+    postgrest = FakePostgrestClient(rows=[], chatbot_row=None)
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.get(
+        "/documents",
+        params={"chatbot_id": "not-mine"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 404
+
+
 def test_list_documents_requires_auth():
-    response = client.get("/documents")
+    response = client.get("/documents", params={"chatbot_id": "chatbot-1"})
 
     assert response.status_code == 401

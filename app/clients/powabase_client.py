@@ -89,6 +89,13 @@ class PowabaseClient:
         resp.raise_for_status()
         return resp.json()
 
+    async def delete_agent(self, agent_id: str) -> None:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.delete(
+                f"{self.base_url}/api/agents/{agent_id}", headers=self.headers
+            )
+        resp.raise_for_status()
+
     async def add_knowledge_base_to_agent(self, agent_id: str, kb_id: str) -> dict:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(

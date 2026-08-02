@@ -10,7 +10,8 @@ from app.clients.postgrest_client import PostgrestClient
 from app.clients.powabase_client import AgentNotFoundError, PowabaseClient
 from app.models.schemas import ChatRequest, ChatResponse
 from app.services.chat_service import ChatRunFailedError, ChatService
-from app.services.chatbot_provisioning import get_or_create_chatbot, recreate_agent_for_chatbot
+from app.services.chatbot_management import ChatbotNotFoundError, get_owned_chatbot
+from app.services.chatbot_provisioning import recreate_agent_for_chatbot
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -23,7 +24,10 @@ async def chat(
     postgrest: PostgrestClient = Depends(get_postgrest_client),
     powabase: PowabaseClient = Depends(get_powabase_client),
 ):
-    chatbot = await get_or_create_chatbot(user["id"], access_token, postgrest, powabase)
+    try:
+        chatbot = await get_owned_chatbot(req.chatbot_id, access_token, postgrest)
+    except ChatbotNotFoundError:
+        raise HTTPException(status_code=404, detail="Chatbot not found")
 
     session = None
     if req.session_id:
@@ -88,17 +92,15 @@ async def chat(
 
 @router.get("/sessions")
 async def list_sessions(
+    chatbot_id: str,
     access_token: str = Depends(get_bearer_token),
     user: dict = Depends(get_current_user),
     postgrest: PostgrestClient = Depends(get_postgrest_client),
-    powabase: PowabaseClient = Depends(get_powabase_client),
 ):
-    chatbot = await get_or_create_chatbot(user["id"], access_token, postgrest, powabase)
-
     return await postgrest.select(
         "chat_sessions",
         "id,title,created_at",
-        filters={"chatbot_id": chatbot.id},
+        filters={"chatbot_id": chatbot_id},
         order="created_at.desc",
         access_token=access_token,
     )

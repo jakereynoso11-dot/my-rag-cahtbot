@@ -10,7 +10,23 @@ class DocumentResponse(BaseModel):
     chatbot_document_id: str
 
 
+class ChatbotCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    system_prompt: Optional[str] = None
+
+
+class ChatbotRename(BaseModel):
+    name: str = Field(..., min_length=1)
+
+
+class ChatbotResponse(BaseModel):
+    id: str
+    name: str
+    created_at: str
+
+
 class ChatRequest(BaseModel):
+    chatbot_id: str = Field(..., min_length=1)
     message: str = Field(..., min_length=1)
     session_id: Optional[str] = None
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
