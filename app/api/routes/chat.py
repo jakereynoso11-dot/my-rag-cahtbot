@@ -120,3 +120,17 @@ async def list_session_messages(
         order="created_at.asc",
         access_token=access_token,
     )
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+async def delete_session(
+    session_id: str,
+    access_token: str = Depends(get_bearer_token),
+    user: dict = Depends(get_current_user),
+    postgrest: PostgrestClient = Depends(get_postgrest_client),
+):
+    rows = await postgrest.delete(
+        "chat_sessions", {"id": session_id}, access_token=access_token
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Conversation not found")

@@ -113,3 +113,11 @@ export async function deleteChatbot(id) {
     throw new Error(data.detail || "Could not delete agent");
   }
 }
+
+export async function deleteChatSession(id) {
+  const resp = await apiFetch(`/chat/sessions/${id}`, { method: "DELETE" });
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(data.detail || "Could not delete conversation");
+  }
+}

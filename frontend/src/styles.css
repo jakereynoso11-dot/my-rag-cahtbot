@@ -446,20 +446,38 @@ button {
 }
 
 .session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
   padding: 0.4rem 0.5rem;
   border-radius: 6px;
   font-size: 0.8rem;
   color: #8a8f98;
   cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .session-item:hover,
 .session-item.active {
   background: #171a21;
   color: #e6e6e6;
+}
+
+.session-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-delete-button {
+  opacity: 0;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.75rem;
+}
+
+.session-item:hover .session-delete-button {
+  opacity: 1;
 }
 
 .chat-window {
