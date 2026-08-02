@@ -77,3 +77,39 @@ export async function apiFetch(path, options = {}, allowRetry = true) {
 
   return resp;
 }
+
+export async function listChatbots() {
+  const resp = await apiFetch("/chatbots");
+  if (!resp.ok) throw new Error("Could not load agents");
+  return resp.json();
+}
+
+export async function createChatbot(name, systemPrompt) {
+  const resp = await apiFetch("/chatbots", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, system_prompt: systemPrompt || null }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "Could not create agent");
+  return data;
+}
+
+export async function renameChatbot(id, name) {
+  const resp = await apiFetch(`/chatbots/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "Could not rename agent");
+  return data;
+}
+
+export async function deleteChatbot(id) {
+  const resp = await apiFetch(`/chatbots/${id}`, { method: "DELETE" });
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(data.detail || "Could not delete agent");
+  }
+}
