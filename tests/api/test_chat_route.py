@@ -14,7 +14,7 @@ _DEFAULT_CHATBOT_ROW = object()
 
 
 class FakePostgrestClient:
-    def __init__(self, chatbot_row=_DEFAULT_CHATBOT_ROW, existing_session=None):
+    def __init__(self, chatbot_row=_DEFAULT_CHATBOT_ROW, existing_session=None, delete_result=None):
         self.chatbot_row = (
             {"id": "chatbot-1", "powabase_agent_id": "agent-1"}
             if chatbot_row is _DEFAULT_CHATBOT_ROW
@@ -23,7 +23,11 @@ class FakePostgrestClient:
         self.existing_session = existing_session
         self.inserted_rows = []
         self.update_calls = []
+        self.delete_calls = []
         self._next_session_id = "sess-new"
+        self._delete_result = (
+            [{"id": "sess-1"}] if delete_result is None else delete_result
+        )
 
     async def select_one(self, table, filters, columns, *, access_token):
         if table == "chatbots":
@@ -41,6 +45,10 @@ class FakePostgrestClient:
     async def update(self, table, filters, values, *, access_token):
         self.update_calls.append((table, filters, values))
         return [values]
+
+    async def delete(self, table, filters, *, access_token):
+        self.delete_calls.append((table, filters))
+        return self._delete_result
 
     async def select(self, table, columns, *, filters=None, order=None, access_token):
         if table == "chat_sessions":
@@ -252,3 +260,34 @@ def test_list_session_messages_returns_rows():
     assert response.json() == [
         {"id": "m1", "role": "user", "content": "hi", "created_at": "2026-01-01T00:00:00Z"}
     ]
+
+
+def test_delete_session_succeeds():
+    postgrest = FakePostgrestClient(delete_result=[{"id": "sess-1"}])
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.delete(
+        "/chat/sessions/sess-1", headers={"Authorization": "Bearer test-token"}
+    )
+
+    assert response.status_code == 204
+    assert postgrest.delete_calls == [("chat_sessions", {"id": "sess-1"})]
+
+
+def test_delete_session_returns_404_when_not_owned_or_missing():
+    postgrest = FakePostgrestClient(delete_result=[])
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.delete(
+        "/chat/sessions/not-mine", headers={"Authorization": "Bearer test-token"}
+    )
+
+    assert response.status_code == 404
+
+
+def test_delete_session_requires_auth():
+    response = client.delete("/chat/sessions/sess-1")
+
+    assert response.status_code == 401

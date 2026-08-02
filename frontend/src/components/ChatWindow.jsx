@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { apiFetch } from "../api";
+import { apiFetch, deleteChatSession } from "../api";
 
 export default function ChatWindow({ chatbotId }) {
   const [sessions, setSessions] = useState([]);
@@ -52,6 +52,21 @@ export default function ChatWindow({ chatbotId }) {
       if (!resp.ok) throw new Error("Could not load conversation");
       const rows = await resp.json();
       setMessages(rows.map((r) => ({ role: r.role, content: r.content })));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDeleteSession(id, e) {
+    e.stopPropagation();
+    if (!window.confirm("Delete this conversation? This can't be undone.")) return;
+    try {
+      await deleteChatSession(id);
+      if (id === sessionId) {
+        setSessionId(null);
+        setMessages([]);
+      }
+      setSessions((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
       setError(err.message);
     }
@@ -111,7 +126,14 @@ export default function ChatWindow({ chatbotId }) {
               className={s.id === sessionId ? "session-item active" : "session-item"}
               onClick={() => openSession(s.id)}
             >
-              {s.title || "Untitled conversation"}
+              <span className="session-title">{s.title || "Untitled conversation"}</span>
+              <button
+                className="icon-button session-delete-button"
+                title="Delete conversation"
+                onClick={(e) => handleDeleteSession(s.id, e)}
+              >
+                ×
+              </button>
             </li>
           ))}
         </ul>
