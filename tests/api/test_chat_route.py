@@ -10,10 +10,16 @@ app = FastAPI()
 app.include_router(chat_router)
 client = TestClient(app)
 
+_DEFAULT_CHATBOT_ROW = object()
+
 
 class FakePostgrestClient:
-    def __init__(self, chatbot_row=None, existing_session=None):
-        self.chatbot_row = chatbot_row or {"id": "chatbot-1", "powabase_agent_id": "agent-1"}
+    def __init__(self, chatbot_row=_DEFAULT_CHATBOT_ROW, existing_session=None):
+        self.chatbot_row = (
+            {"id": "chatbot-1", "powabase_agent_id": "agent-1"}
+            if chatbot_row is _DEFAULT_CHATBOT_ROW
+            else chatbot_row
+        )
         self.existing_session = existing_session
         self.inserted_rows = []
         self.update_calls = []
@@ -89,7 +95,9 @@ def test_chat_starts_new_session_and_persists_messages():
     app.dependency_overrides[get_powabase_client] = lambda: powabase
 
     response = client.post(
-        "/chat", json={"message": "hello"}, headers={"Authorization": "Bearer test-token"}
+        "/chat",
+        json={"chatbot_id": "chatbot-1", "message": "hello"},
+        headers={"Authorization": "Bearer test-token"},
     )
 
     assert response.status_code == 200
@@ -128,7 +136,7 @@ def test_chat_continues_existing_session_without_updating_powabase_session_id():
 
     response = client.post(
         "/chat",
-        json={"message": "follow up", "session_id": "sess-1"},
+        json={"chatbot_id": "chatbot-1", "message": "follow up", "session_id": "sess-1"},
         headers={"Authorization": "Bearer test-token"},
     )
 
@@ -138,9 +146,25 @@ def test_chat_continues_existing_session_without_updating_powabase_session_id():
 
 
 def test_chat_requires_auth():
-    response = client.post("/chat", json={"message": "hello"})
+    response = client.post("/chat", json={"chatbot_id": "chatbot-1", "message": "hello"})
 
     assert response.status_code == 401
+
+
+def test_chat_returns_404_when_chatbot_not_owned():
+    postgrest = FakePostgrestClient(chatbot_row=None)
+    powabase = FakePowabaseClient()
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: powabase
+
+    response = client.post(
+        "/chat",
+        json={"chatbot_id": "not-mine", "message": "hello"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 404
 
 
 def test_chat_returns_502_on_run_failure():
@@ -151,7 +175,9 @@ def test_chat_returns_502_on_run_failure():
     app.dependency_overrides[get_powabase_client] = lambda: powabase
 
     response = client.post(
-        "/chat", json={"message": "hello"}, headers={"Authorization": "Bearer test-token"}
+        "/chat",
+        json={"chatbot_id": "chatbot-1", "message": "hello"},
+        headers={"Authorization": "Bearer test-token"},
     )
 
     assert response.status_code == 502
@@ -171,7 +197,9 @@ def test_chat_recovers_and_retries_when_stored_agent_was_deleted():
     app.dependency_overrides[get_powabase_client] = lambda: powabase
 
     response = client.post(
-        "/chat", json={"message": "hello"}, headers={"Authorization": "Bearer test-token"}
+        "/chat",
+        json={"chatbot_id": "chatbot-1", "message": "hello"},
+        headers={"Authorization": "Bearer test-token"},
     )
 
     assert response.status_code == 200
@@ -184,18 +212,31 @@ def test_chat_recovers_and_retries_when_stored_agent_was_deleted():
     ) in postgrest.update_calls
 
 
-def test_list_sessions_returns_rows_for_own_chatbot():
+def test_list_sessions_returns_rows_for_given_chatbot():
     postgrest = FakePostgrestClient()
     app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
     app.dependency_overrides[get_postgrest_client] = lambda: postgrest
-    app.dependency_overrides[get_powabase_client] = lambda: FakePowabaseClient()
 
-    response = client.get("/chat/sessions", headers={"Authorization": "Bearer test-token"})
+    response = client.get(
+        "/chat/sessions",
+        params={"chatbot_id": "chatbot-1"},
+        headers={"Authorization": "Bearer test-token"},
+    )
 
     assert response.status_code == 200
     assert response.json() == [
         {"id": "sess-1", "title": None, "created_at": "2026-01-01T00:00:00Z"}
     ]
+
+
+def test_list_sessions_requires_chatbot_id():
+    postgrest = FakePostgrestClient()
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.get("/chat/sessions", headers={"Authorization": "Bearer test-token"})
+
+    assert response.status_code == 422
 
 
 def test_list_session_messages_returns_rows():

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../api";
 
-export default function DocumentsPanel() {
+export default function DocumentsPanel({ chatbotId }) {
   const [documents, setDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -9,7 +9,7 @@ export default function DocumentsPanel() {
 
   async function loadDocuments() {
     try {
-      const resp = await apiFetch("/documents");
+      const resp = await apiFetch(`/documents?chatbot_id=${encodeURIComponent(chatbotId)}`);
       if (!resp.ok) throw new Error("Could not load documents");
       setDocuments(await resp.json());
     } catch (err) {
@@ -18,16 +18,20 @@ export default function DocumentsPanel() {
   }
 
   useEffect(() => {
-    loadDocuments();
-  }, []);
+    setDocuments([]);
+    setError("");
+    if (chatbotId) loadDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatbotId]);
 
   async function handleFileChange(e) {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file || !chatbotId) return;
     setUploading(true);
     setError("");
     try {
       const formData = new FormData();
+      formData.append("chatbot_id", chatbotId);
       formData.append("file", file);
       const resp = await apiFetch("/ingest/file", { method: "POST", body: formData });
       if (!resp.ok) {

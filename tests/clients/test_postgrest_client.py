@@ -108,3 +108,18 @@ async def test_update_applies_filters_and_returns_rows():
     request = route.calls.last.request
     assert request.url.params["id"] == "eq.doc-1"
     assert json.loads(request.content) == {"index_status": "indexed"}
+
+
+@respx.mock
+async def test_delete_applies_filters_and_returns_rows():
+    route = respx.delete(f"{BASE_URL}/rest/v1/chatbots").mock(
+        return_value=httpx.Response(200, json=[{"id": "cb-1"}])
+    )
+    client = make_client()
+
+    result = await client.delete("chatbots", {"id": "cb-1"}, access_token=TOKEN)
+
+    assert result == [{"id": "cb-1"}]
+    request = route.calls.last.request
+    assert request.url.params["id"] == "eq.cb-1"
+    assert request.headers["Prefer"] == "return=representation"

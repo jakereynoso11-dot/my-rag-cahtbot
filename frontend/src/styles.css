@@ -128,10 +128,224 @@ button {
   color: #e6e6e6;
 }
 
+.header-right .link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #8a9cff;
+  font-size: 0.85rem;
+}
+
 .dashboard-body {
   flex: 1;
   display: flex;
   min-height: 0;
+}
+
+.empty-state-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8a8f98;
+  font-size: 0.95rem;
+}
+
+/* Agents panel */
+
+.agents-panel {
+  width: 240px;
+  border-right: 1px solid #262b36;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.agents-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.agents-panel-header h2 {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.icon-button {
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #2c313c;
+  background: #171a21;
+  color: #e6e6e6;
+  font-size: 0.75rem;
+}
+
+.agent-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #171a21;
+  border: 1px solid #262b36;
+}
+
+.agent-create-form input,
+.agent-create-form textarea {
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #2c313c;
+  background: #0f1115;
+  color: #e6e6e6;
+  font-family: inherit;
+  font-size: 0.8rem;
+  resize: vertical;
+}
+
+.agent-create-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.agent-create-actions button[type="submit"] {
+  padding: 0.4rem 0.9rem;
+  border: none;
+  border-radius: 6px;
+  background: #4f7cff;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.agents-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.agent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #8a8f98;
+}
+
+.agent-item:hover,
+.agent-item.active {
+  background: #171a21;
+  color: #e6e6e6;
+}
+
+.agent-name {
+  cursor: pointer;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-actions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+}
+
+.agent-item:hover .agent-actions {
+  opacity: 1;
+}
+
+.agent-actions .icon-button {
+  padding: 0.1rem 0.4rem;
+}
+
+.agent-rename-input {
+  flex: 1;
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid #4f7cff;
+  background: #0f1115;
+  color: #e6e6e6;
+  font-size: 0.85rem;
+}
+
+/* Onboarding guide */
+
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 6, 8, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.onboarding-card {
+  width: 420px;
+  max-width: 90vw;
+  background: #171a21;
+  border: 1px solid #262b36;
+  border-radius: 14px;
+  padding: 1.75rem;
+}
+
+.onboarding-progress {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: #8a8f98;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.onboarding-card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+.onboarding-card p:not(.onboarding-progress) {
+  margin: 0 0 1.25rem;
+  line-height: 1.5;
+  color: #c7cad1;
+  font-size: 0.9rem;
+}
+
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.onboarding-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.onboarding-nav button {
+  padding: 0.5rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid #2c313c;
+  background: #0f1115;
+  color: #e6e6e6;
+  font-size: 0.85rem;
+}
+
+.onboarding-nav button:last-child {
+  background: #4f7cff;
+  border-color: #4f7cff;
+  color: white;
+  font-weight: 600;
 }
 
 /* Documents panel */

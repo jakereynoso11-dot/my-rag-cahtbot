@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../api";
 
-export default function ChatWindow() {
+export default function ChatWindow({ chatbotId }) {
   const [sessions, setSessions] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -12,7 +12,9 @@ export default function ChatWindow() {
 
   async function loadSessions() {
     try {
-      const resp = await apiFetch("/chat/sessions");
+      const resp = await apiFetch(
+        `/chat/sessions?chatbot_id=${encodeURIComponent(chatbotId)}`
+      );
       if (!resp.ok) return;
       setSessions(await resp.json());
     } catch {
@@ -21,8 +23,16 @@ export default function ChatWindow() {
   }
 
   useEffect(() => {
-    loadSessions();
-  }, []);
+    setSessionId(null);
+    setMessages([]);
+    setError("");
+    if (chatbotId) {
+      loadSessions();
+    } else {
+      setSessions([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatbotId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -50,7 +60,7 @@ export default function ChatWindow() {
   async function handleSend(e) {
     e.preventDefault();
     const text = input.trim();
-    if (!text || sending) return;
+    if (!text || sending || !chatbotId) return;
 
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setInput("");
@@ -61,7 +71,7 @@ export default function ChatWindow() {
       const resp = await apiFetch("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, session_id: sessionId }),
+        body: JSON.stringify({ chatbot_id: chatbotId, message: text, session_id: sessionId }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.detail || "Chat request failed");
@@ -130,7 +140,7 @@ export default function ChatWindow() {
             placeholder="Ask something..."
             rows={1}
           />
-          <button type="submit" disabled={sending || !input.trim()}>
+          <button type="submit" disabled={sending || !input.trim() || !chatbotId}>
             {sending ? "..." : "Send"}
           </button>
         </form>

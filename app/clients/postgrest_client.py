@@ -86,3 +86,20 @@ class PostgrestClient:
             )
         resp.raise_for_status()
         return resp.json()
+
+    async def delete(self, table: str, filters: dict, *, access_token: str) -> list:
+        params = {}
+        for key, value in filters.items():
+            params[key] = f"eq.{value}"
+
+        headers = self._headers(access_token)
+        headers["Prefer"] = "return=representation"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.delete(
+                f"{self.base_url}/rest/v1/{table}",
+                headers=headers,
+                params=params,
+            )
+        resp.raise_for_status()
+        return resp.json()

@@ -9,10 +9,16 @@ app = FastAPI()
 app.include_router(ingest_router)
 client = TestClient(app)
 
+_DEFAULT_CHATBOT_ROW = object()
+
 
 class FakePostgrestClient:
-    def __init__(self):
-        self.chatbot_row = {"id": "chatbot-1", "powabase_agent_id": "agent-1"}
+    def __init__(self, chatbot_row=_DEFAULT_CHATBOT_ROW):
+        self.chatbot_row = (
+            {"id": "chatbot-1", "powabase_agent_id": "agent-1"}
+            if chatbot_row is _DEFAULT_CHATBOT_ROW
+            else chatbot_row
+        )
         self.rpc_results = {
             "register_or_get_document": [
                 {
@@ -72,6 +78,7 @@ def test_ingest_file_success():
 
     response = client.post(
         "/ingest/file",
+        data={"chatbot_id": "chatbot-1"},
         files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
         headers={"Authorization": "Bearer test-token"},
     )
@@ -85,9 +92,40 @@ def test_ingest_file_success():
     }
 
 
+def test_ingest_file_requires_chatbot_id():
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: FakePostgrestClient()
+    app.dependency_overrides[get_powabase_client] = lambda: FakePowabaseClient()
+
+    response = client.post(
+        "/ingest/file",
+        files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_ingest_file_returns_404_when_chatbot_not_owned():
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: FakePostgrestClient(chatbot_row=None)
+    app.dependency_overrides[get_powabase_client] = lambda: FakePowabaseClient()
+
+    response = client.post(
+        "/ingest/file",
+        data={"chatbot_id": "not-mine"},
+        files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 404
+
+
 def test_ingest_file_requires_auth():
     response = client.post(
-        "/ingest/file", files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")}
+        "/ingest/file",
+        data={"chatbot_id": "chatbot-1"},
+        files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
     )
 
     assert response.status_code == 401

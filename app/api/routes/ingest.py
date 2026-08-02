@@ -1,5 +1,5 @@
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.api.deps import (
     get_bearer_token,
@@ -11,7 +11,7 @@ from app.clients.postgrest_client import PostgrestClient
 from app.clients.powabase_client import PowabaseClient
 from app.core.config import settings
 from app.models.schemas import DocumentResponse
-from app.services.chatbot_provisioning import get_or_create_chatbot
+from app.services.chatbot_management import ChatbotNotFoundError, get_owned_chatbot
 from app.services.document_ingestion import ingest_document_for_chatbot
 from app.services.ingest_service import ExtractionNotUsableError, PollTimeoutError
 
@@ -20,6 +20,7 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 
 @router.post("/file", response_model=DocumentResponse)
 async def ingest_file(
+    chatbot_id: str = Form(...),
     file: UploadFile = File(...),
     access_token: str = Depends(get_bearer_token),
     user: dict = Depends(get_current_user),
@@ -31,7 +32,10 @@ async def ingest_file(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not read uploaded file: {e}")
 
-    chatbot = await get_or_create_chatbot(user["id"], access_token, postgrest, powabase)
+    try:
+        chatbot = await get_owned_chatbot(chatbot_id, access_token, postgrest)
+    except ChatbotNotFoundError:
+        raise HTTPException(status_code=404, detail="Chatbot not found")
 
     try:
         result = await ingest_document_for_chatbot(

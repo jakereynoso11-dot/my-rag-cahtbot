@@ -114,6 +114,19 @@ async def test_create_agent():
 
 
 @respx.mock
+async def test_delete_agent():
+    route = respx.delete(f"{BASE_URL}/api/agents/agent-1").mock(
+        return_value=httpx.Response(204)
+    )
+    client = make_client()
+
+    await client.delete_agent("agent-1")
+
+    request = route.calls.last.request
+    assert request.headers["apikey"] == API_KEY
+
+
+@respx.mock
 async def test_add_knowledge_base_to_agent():
     route = respx.post(f"{BASE_URL}/api/agents/agent-1/knowledge-bases").mock(
         return_value=httpx.Response(201, json={"id": "link-1"})
