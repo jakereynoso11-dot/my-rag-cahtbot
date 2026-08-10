@@ -27,7 +27,7 @@ async def list_chatbots(
 ) -> list:
     return await postgrest.select(
         "chatbots",
-        "id,name,created_at",
+        "id,name,created_at,system_prompt",
         filters={"owner_id": user_id},
         order="created_at.desc",
         access_token=access_token,
@@ -42,11 +42,17 @@ async def create_chatbot(
     postgrest: PostgrestClient,
     powabase: PowabaseClient,
 ) -> Chatbot:
-    agent = await powabase.create_agent(name, system_prompt or SYSTEM_PROMPT)
+    resolved_prompt = system_prompt or SYSTEM_PROMPT
+    agent = await powabase.create_agent(name, resolved_prompt)
 
     row = await postgrest.insert(
         "chatbots",
-        {"owner_id": user_id, "name": name, "powabase_agent_id": agent["id"]},
+        {
+            "owner_id": user_id,
+            "name": name,
+            "powabase_agent_id": agent["id"],
+            "system_prompt": resolved_prompt,
+        },
         access_token=access_token,
     )
 

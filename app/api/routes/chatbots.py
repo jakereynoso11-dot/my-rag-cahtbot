@@ -41,7 +41,10 @@ async def create_my_chatbot(
         user["id"], req.name, req.system_prompt, access_token, postgrest, powabase
     )
     return await postgrest.select_one(
-        "chatbots", {"id": chatbot.id}, "id,name,created_at", access_token=access_token
+        "chatbots",
+        {"id": chatbot.id},
+        "id,name,created_at,system_prompt",
+        access_token=access_token,
     )
 
 

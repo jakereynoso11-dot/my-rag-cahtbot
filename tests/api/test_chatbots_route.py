@@ -68,7 +68,14 @@ def clear_overrides():
 
 def test_list_chatbots_returns_owned_rows():
     postgrest = FakePostgrestClient(
-        list_rows=[{"id": "cb-1", "name": "Tax Docs Helper", "created_at": "2026-01-01T00:00:00Z"}]
+        list_rows=[
+            {
+                "id": "cb-1",
+                "name": "Tax Docs Helper",
+                "created_at": "2026-01-01T00:00:00Z",
+                "system_prompt": "You're a tax assistant.",
+            }
+        ]
     )
     app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
     app.dependency_overrides[get_postgrest_client] = lambda: postgrest
@@ -77,7 +84,12 @@ def test_list_chatbots_returns_owned_rows():
 
     assert response.status_code == 200
     assert response.json() == [
-        {"id": "cb-1", "name": "Tax Docs Helper", "created_at": "2026-01-01T00:00:00Z"}
+        {
+            "id": "cb-1",
+            "name": "Tax Docs Helper",
+            "created_at": "2026-01-01T00:00:00Z",
+            "system_prompt": "You're a tax assistant.",
+        }
     ]
 
 

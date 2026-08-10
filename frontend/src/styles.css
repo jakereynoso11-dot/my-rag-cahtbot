@@ -142,38 +142,6 @@ button {
   min-height: 0;
 }
 
-.empty-state-main {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #8a8f98;
-  font-size: 0.95rem;
-}
-
-/* Agents panel */
-
-.agents-panel {
-  width: 240px;
-  border-right: 1px solid #262b36;
-  padding: 1rem;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.agents-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-}
-
-.agents-panel-header h2 {
-  font-size: 0.95rem;
-  margin: 0;
-}
-
 .icon-button {
   padding: 0.25rem 0.5rem;
   border-radius: 6px;
@@ -183,101 +151,194 @@ button {
   font-size: 0.75rem;
 }
 
-.agent-create-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  background: #171a21;
-  border: 1px solid #262b36;
-}
-
-.agent-create-form input,
-.agent-create-form textarea {
-  padding: 0.5rem 0.6rem;
-  border-radius: 6px;
-  border: 1px solid #2c313c;
-  background: #0f1115;
-  color: #e6e6e6;
-  font-family: inherit;
-  font-size: 0.8rem;
-  resize: vertical;
-}
-
-.agent-create-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.agent-create-actions button[type="submit"] {
-  padding: 0.4rem 0.9rem;
+.primary-button {
+  padding: 0.55rem 1rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #4f7cff;
   color: white;
-  font-size: 0.8rem;
   font-weight: 600;
+  font-size: 0.85rem;
 }
 
-.agents-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
-.agent-item {
+/* Chatbots table (My Chatbots page) */
+
+.chatbots-page {
+  flex: 1;
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+}
+
+.chatbots-page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.45rem 0.6rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.chatbots-page-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.chatbots-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 2rem;
+  border: 1px dashed #3a4150;
+  border-radius: 10px;
+}
+
+.chatbots-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.chatbots-table th {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
   color: #8a8f98;
+  font-weight: 500;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid #262b36;
 }
 
-.agent-item:hover,
-.agent-item.active {
-  background: #171a21;
-  color: #e6e6e6;
+.chatbots-table td {
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid #1c2028;
+  vertical-align: top;
 }
 
-.agent-name {
+.chatbots-table-row {
   cursor: pointer;
-  flex: 1;
-  white-space: nowrap;
+}
+
+.chatbots-table-row:hover {
+  background: #171a21;
+}
+
+.chatbots-table-purpose {
+  color: #c7cad1;
+  max-width: 420px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.agent-actions {
+.chatbots-table-actions {
   display: flex;
-  gap: 0.25rem;
-  opacity: 0;
+  gap: 0.3rem;
+  white-space: nowrap;
 }
 
-.agent-item:hover .agent-actions {
-  opacity: 1;
-}
-
-.agent-actions .icon-button {
-  padding: 0.1rem 0.4rem;
-}
-
-.agent-rename-input {
-  flex: 1;
+.rename-input {
+  width: 100%;
   padding: 0.3rem 0.4rem;
   border-radius: 6px;
   border: 1px solid #4f7cff;
   background: #0f1115;
   color: #e6e6e6;
   font-size: 0.85rem;
+}
+
+/* Create chatbot modal */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 6, 8, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: 440px;
+  max-width: 90vw;
+  background: #171a21;
+  border: 1px solid #262b36;
+  border-radius: 14px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.modal-card h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.modal-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: #8a8f98;
+}
+
+.modal-card input,
+.modal-card textarea {
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid #2c313c;
+  background: #0f1115;
+  color: #e6e6e6;
+  font-family: inherit;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+/* Chatbot workspace (selected chatbot's docs + chat) */
+
+.chatbot-workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.workspace-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid #262b36;
+}
+
+.workspace-title h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.workspace-purpose {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: #8a8f98;
+}
+
+.workspace-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
 }
 
 /* Onboarding guide */
