@@ -36,7 +36,7 @@ export default function Dashboard() {
           </>
         ) : (
           <div className="empty-state-main">
-            <p>Create an agent on the left to get started.</p>
+            <p>Create a chatbot on the left to get started.</p>
           </div>
         )}
       </div>

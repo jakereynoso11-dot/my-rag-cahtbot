@@ -84,7 +84,7 @@ export default function SpecialistsPanel({ chatbotId }) {
       </div>
       <p className="specialists-panel-hint">
         Optional. Add specialists for specific topics (e.g. "Billing") and this
-        agent will automatically hand off matching questions to them.
+        chatbot will automatically hand off matching questions to them.
       </p>
 
       {creating && (

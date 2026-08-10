@@ -50,11 +50,11 @@ export default function AgentsPanel({ selectedId, onSelect }) {
     const name = newName.trim();
     const purpose = newPurpose.trim();
     if (!name) {
-      setCreateError("Give your agent a name.");
+      setCreateError("Give your chatbot a name.");
       return;
     }
     if (!purpose) {
-      setCreateError("Describe what this agent is for — it helps it stay on topic.");
+      setCreateError("Describe what this chatbot is for — it helps it stay on topic.");
       return;
     }
     setCreateError("");
@@ -95,11 +95,11 @@ export default function AgentsPanel({ selectedId, onSelect }) {
   return (
     <aside className="agents-panel" data-tour="agents-panel">
       <div className="agents-panel-header">
-        <h2>Your Agents</h2>
+        <h2>Your Chatbots</h2>
         <button
           className="icon-button"
           onClick={() => (creating ? resetCreateForm() : setCreating(true))}
-          title="Create a new agent"
+          title="Create a new chatbot"
         >
           + New
         </button>
@@ -125,7 +125,7 @@ export default function AgentsPanel({ selectedId, onSelect }) {
           </label>
           <textarea
             id="agent-create-purpose"
-            placeholder="What is this agent for? e.g. &quot;Answer questions about my uploaded tax documents so I don't have to dig through them myself.&quot;"
+            placeholder="What is this chatbot for? e.g. &quot;Answer questions about my uploaded tax documents so I don't have to dig through them myself.&quot;"
             value={newPurpose}
             onChange={(e) => setNewPurpose(e.target.value)}
             rows={2}
@@ -147,7 +147,7 @@ export default function AgentsPanel({ selectedId, onSelect }) {
 
           <div className="agent-create-actions">
             <button type="submit" disabled={submitting}>
-              {submitting ? "Creating..." : "Create agent"}
+              {submitting ? "Creating..." : "Create chatbot"}
             </button>
             <button type="button" className="link-button" onClick={resetCreateForm}>
               Cancel
@@ -161,7 +161,7 @@ export default function AgentsPanel({ selectedId, onSelect }) {
       {loading ? (
         <p className="empty-text">Loading...</p>
       ) : agents.length === 0 ? (
-        <p className="empty-text">No agents yet. Create one to get started.</p>
+        <p className="empty-text">No chatbots yet. Create one to get started.</p>
       ) : (
         <ul className="agents-list">
           {agents.map((a) => (
