@@ -62,13 +62,25 @@ class FakePowabaseClient:
 
 async def test_list_chatbots_scopes_to_owner():
     postgrest = FakePostgrestClient(
-        list_rows=[{"id": "cb-1", "name": "Tax Docs Helper", "created_at": "2026-01-01T00:00:00Z"}]
+        list_rows=[
+            {
+                "id": "cb-1",
+                "name": "Tax Docs Helper",
+                "purpose": "Answer questions about my tax filings",
+                "created_at": "2026-01-01T00:00:00Z",
+            }
+        ]
     )
 
     result = await list_chatbots("user-1", TOKEN, postgrest)
 
     assert result == [
-        {"id": "cb-1", "name": "Tax Docs Helper", "created_at": "2026-01-01T00:00:00Z"}
+        {
+            "id": "cb-1",
+            "name": "Tax Docs Helper",
+            "purpose": "Answer questions about my tax filings",
+            "created_at": "2026-01-01T00:00:00Z",
+        }
     ]
     table, columns, filters, order, access_token = postgrest.select_calls[0]
     assert table == "chatbots"
@@ -81,7 +93,13 @@ async def test_create_chatbot_uses_custom_system_prompt():
     powabase = FakePowabaseClient()
 
     result = await create_chatbot(
-        "user-1", "Tax Docs Helper", "You're a tax assistant.", TOKEN, postgrest, powabase
+        "user-1",
+        "Tax Docs Helper",
+        "Answer questions about my tax filings",
+        "You're a tax assistant.",
+        TOKEN,
+        postgrest,
+        powabase,
     )
 
     assert result.id == "chatbot-new"
@@ -90,7 +108,12 @@ async def test_create_chatbot_uses_custom_system_prompt():
     assert postgrest.insert_calls == [
         (
             "chatbots",
-            {"owner_id": "user-1", "name": "Tax Docs Helper", "powabase_agent_id": "agent-new"},
+            {
+                "owner_id": "user-1",
+                "name": "Tax Docs Helper",
+                "purpose": "Answer questions about my tax filings",
+                "powabase_agent_id": "agent-new",
+            },
             TOKEN,
         )
     ]
@@ -100,7 +123,7 @@ async def test_create_chatbot_falls_back_to_default_system_prompt():
     postgrest = FakePostgrestClient()
     powabase = FakePowabaseClient()
 
-    await create_chatbot("user-1", "Recipe Box", None, TOKEN, postgrest, powabase)
+    await create_chatbot("user-1", "Recipe Box", None, None, TOKEN, postgrest, powabase)
 
     assert powabase.create_agent_calls == [("Recipe Box", SYSTEM_PROMPT)]
 

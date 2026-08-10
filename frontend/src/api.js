@@ -84,11 +84,15 @@ export async function listChatbots() {
   return resp.json();
 }
 
-export async function createChatbot(name, systemPrompt) {
+export async function createChatbot(name, purpose, systemPrompt) {
   const resp = await apiFetch("/chatbots", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, system_prompt: systemPrompt || null }),
+    body: JSON.stringify({
+      name,
+      purpose: purpose || null,
+      system_prompt: systemPrompt || null,
+    }),
   });
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.detail || "Could not create agent");
@@ -111,6 +115,37 @@ export async function deleteChatbot(id) {
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({}));
     throw new Error(data.detail || "Could not delete agent");
+  }
+}
+
+export async function listSpecialists(chatbotId) {
+  const resp = await apiFetch(`/chatbots/${chatbotId}/specialists`);
+  if (!resp.ok) throw new Error("Could not load specialists");
+  return resp.json();
+}
+
+export async function createSpecialist(chatbotId, name, specialty, systemPrompt) {
+  const resp = await apiFetch(`/chatbots/${chatbotId}/specialists`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name,
+      specialty,
+      system_prompt: systemPrompt || null,
+    }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "Could not create specialist");
+  return data;
+}
+
+export async function deleteSpecialist(chatbotId, specialistId) {
+  const resp = await apiFetch(`/chatbots/${chatbotId}/specialists/${specialistId}`, {
+    method: "DELETE",
+  });
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(data.detail || "Could not delete specialist");
   }
 }
 

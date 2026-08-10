@@ -12,8 +12,30 @@ from app.models.schemas import ChatRequest, ChatResponse
 from app.services.chat_service import ChatRunFailedError, ChatService
 from app.services.chatbot_management import ChatbotNotFoundError, get_owned_chatbot
 from app.services.chatbot_provisioning import recreate_agent_for_chatbot
+from app.services.specialist_management import Specialist
+from app.services.specialist_routing import choose_specialist
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+async def _load_specialists(
+    chatbot_id: str, access_token: str, postgrest: PostgrestClient
+) -> list[Specialist]:
+    rows = await postgrest.select(
+        "chatbot_specialists",
+        "id,name,specialty,powabase_agent_id",
+        filters={"chatbot_id": chatbot_id},
+        access_token=access_token,
+    )
+    return [
+        Specialist(
+            id=row["id"],
+            name=row["name"],
+            specialty=row["specialty"],
+            agent_id=row["powabase_agent_id"],
+        )
+        for row in rows
+    ]
 
 
 @router.post("", response_model=ChatResponse)
@@ -48,12 +70,31 @@ async def chat(
         access_token=access_token,
     )
 
-    chat_service = ChatService(client=powabase, agent_id=chatbot.agent_id)
+    # Like GPT Trainer's multi-agent orchestration: if this chatbot has
+    # specialist sub-agents, a lightweight routing step picks the best one
+    # for this message; otherwise the parent chatbot's own agent answers.
+    specialists = await _load_specialists(chatbot.id, access_token, postgrest)
+    chosen_specialist = await choose_specialist(
+        req.message, specialists, chatbot.agent_id, powabase
+    )
+    answering_agent_id = (
+        chosen_specialist.agent_id if chosen_specialist else chatbot.agent_id
+    )
+
+    chat_service = ChatService(client=powabase, agent_id=answering_agent_id)
     try:
         try:
             result = await chat_service.get_answer(
                 query=req.message,
-                session_id=session.get("powabase_session_id"),
+                # A stored powabase_session_id belongs to whichever agent
+                # last answered in this conversation. Only reuse it when the
+                # parent chatbot is answering again; a specialist (a
+                # different Powabase agent) always starts its own session,
+                # since our own `messages` table -- not Powabase's session --
+                # is the durable record of this conversation either way.
+                session_id=(
+                    session.get("powabase_session_id") if not chosen_specialist else None
+                ),
                 temperature=req.temperature,
             )
         except AgentNotFoundError:
@@ -87,7 +128,12 @@ async def chat(
         access_token=access_token,
     )
 
-    return ChatResponse(answer=result.answer, sources=result.sources, session_id=session["id"])
+    return ChatResponse(
+        answer=result.answer,
+        sources=result.sources,
+        session_id=session["id"],
+        specialist_name=chosen_specialist.name if chosen_specialist else None,
+    )
 
 
 @router.get("/sessions")

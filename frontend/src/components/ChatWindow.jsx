@@ -93,7 +93,10 @@ export default function ChatWindow({ chatbotId }) {
 
       const isNewSession = !sessionId;
       setSessionId(data.session_id);
-      setMessages((prev) => [...prev, { role: "assistant", content: data.answer }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.answer, specialistName: data.specialist_name },
+      ]);
       if (isNewSession) loadSessions();
     } catch (err) {
       setError(err.message);
@@ -148,6 +151,9 @@ export default function ChatWindow({ chatbotId }) {
               key={i}
               className={`chat-bubble chat-bubble-${m.role}${m.isError ? " chat-bubble-error" : ""}`}
             >
+              {m.specialistName && (
+                <span className="chat-specialist-badge">{m.specialistName}</span>
+              )}
               {m.content}
             </div>
           ))}

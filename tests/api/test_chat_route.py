@@ -14,7 +14,13 @@ _DEFAULT_CHATBOT_ROW = object()
 
 
 class FakePostgrestClient:
-    def __init__(self, chatbot_row=_DEFAULT_CHATBOT_ROW, existing_session=None, delete_result=None):
+    def __init__(
+        self,
+        chatbot_row=_DEFAULT_CHATBOT_ROW,
+        existing_session=None,
+        delete_result=None,
+        specialist_rows=None,
+    ):
         self.chatbot_row = (
             {"id": "chatbot-1", "powabase_agent_id": "agent-1"}
             if chatbot_row is _DEFAULT_CHATBOT_ROW
@@ -28,6 +34,7 @@ class FakePostgrestClient:
         self._delete_result = (
             [{"id": "sess-1"}] if delete_result is None else delete_result
         )
+        self.specialist_rows = specialist_rows or []
 
     async def select_one(self, table, filters, columns, *, access_token):
         if table == "chatbots":
@@ -59,15 +66,27 @@ class FakePostgrestClient:
             ]
         if table == "chatbot_documents":
             return [{"documents": {"powabase_knowledge_base_id": "kb-1"}}]
+        if table == "chatbot_specialists":
+            return self.specialist_rows
         raise AssertionError(f"unexpected select on {table}")
 
 
 class FakePowabaseClient:
-    def __init__(self, lines=None, not_found_for_agent_id=None, lines_after_recovery=None):
+    def __init__(
+        self,
+        lines=None,
+        not_found_for_agent_id=None,
+        lines_after_recovery=None,
+        routing_reply=None,
+        specialist_answers=None,
+    ):
         self._lines = lines or []
         self._not_found_for_agent_id = not_found_for_agent_id
         self._lines_after_recovery = lines_after_recovery or []
         self.link_agent_calls = []
+        self._routing_reply = routing_reply
+        self._specialist_answers = specialist_answers or {}
+        self.run_calls = []
 
     async def create_agent(self, name, system_prompt):
         return {"id": "agent-recovered"}
@@ -77,8 +96,20 @@ class FakePowabaseClient:
         return {"id": "link-1"}
 
     async def stream_agent_run(self, agent_id, message, session_id=None, temperature=None):
+        self.run_calls.append((agent_id, message, session_id))
         if agent_id == self._not_found_for_agent_id:
             raise AgentNotFoundError(agent_id)
+
+        if "routing classifier" in message:
+            reply = self._routing_reply if self._routing_reply is not None else "NONE"
+            yield f'data: {{"event": "complete", "status": "completed", "content": "{reply}"}}'
+            return
+
+        if agent_id in self._specialist_answers:
+            content = self._specialist_answers[agent_id]
+            yield f'data: {{"event": "complete", "status": "completed", "content": "{content}"}}'
+            return
+
         lines = self._lines_after_recovery if agent_id == "agent-recovered" else self._lines
         for line in lines:
             yield line
@@ -109,7 +140,12 @@ def test_chat_starts_new_session_and_persists_messages():
     )
 
     assert response.status_code == 200
-    assert response.json() == {"answer": "hi there", "sources": [], "session_id": "sess-new"}
+    assert response.json() == {
+        "answer": "hi there",
+        "sources": [],
+        "session_id": "sess-new",
+        "specialist_name": None,
+    }
 
     message_inserts = [row for table, row in postgrest.inserted_rows if table == "messages"]
     assert message_inserts == [
@@ -218,6 +254,118 @@ def test_chat_recovers_and_retries_when_stored_agent_was_deleted():
         {"id": "chatbot-1"},
         {"powabase_agent_id": "agent-recovered"},
     ) in postgrest.update_calls
+
+
+def test_chat_routes_to_the_only_specialist_without_a_classification_call():
+    postgrest = FakePostgrestClient(
+        specialist_rows=[
+            {
+                "id": "spec-1",
+                "name": "Billing Agent",
+                "specialty": "billing questions",
+                "powabase_agent_id": "agent-billing",
+            }
+        ]
+    )
+    powabase = FakePowabaseClient(
+        specialist_answers={"agent-billing": "your invoice is paid"}
+    )
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: powabase
+
+    response = client.post(
+        "/chat",
+        json={"chatbot_id": "chatbot-1", "message": "what's my invoice status"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["answer"] == "your invoice is paid"
+    assert body["specialist_name"] == "Billing Agent"
+    # No routing classifier call needed when there's only one specialist.
+    assert all("routing classifier" not in call[1] for call in powabase.run_calls)
+    assert ("agent-billing", "what's my invoice status", None) in [
+        (a, m, s) for a, m, s in powabase.run_calls
+    ]
+
+
+def test_chat_routes_to_matching_specialist_via_classification():
+    postgrest = FakePostgrestClient(
+        specialist_rows=[
+            {
+                "id": "spec-1",
+                "name": "Billing Agent",
+                "specialty": "billing questions",
+                "powabase_agent_id": "agent-billing",
+            },
+            {
+                "id": "spec-2",
+                "name": "Tax Agent",
+                "specialty": "tax questions",
+                "powabase_agent_id": "agent-tax",
+            },
+        ]
+    )
+    powabase = FakePowabaseClient(
+        routing_reply="Tax Agent",
+        specialist_answers={"agent-tax": "here's your tax answer"},
+    )
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: powabase
+
+    response = client.post(
+        "/chat",
+        json={"chatbot_id": "chatbot-1", "message": "how do I file a w2"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["answer"] == "here's your tax answer"
+    assert body["specialist_name"] == "Tax Agent"
+
+
+def test_chat_falls_back_to_parent_chatbot_when_no_specialist_matches():
+    postgrest = FakePostgrestClient(
+        specialist_rows=[
+            {
+                "id": "spec-1",
+                "name": "Billing Agent",
+                "specialty": "billing questions",
+                "powabase_agent_id": "agent-billing",
+            },
+            {
+                "id": "spec-2",
+                "name": "Tax Agent",
+                "specialty": "tax questions",
+                "powabase_agent_id": "agent-tax",
+            },
+        ]
+    )
+    powabase = FakePowabaseClient(
+        routing_reply="NONE",
+        lines=[
+            'data: {"event": "start", "session_id": "powabase-sess-1"}',
+            'data: {"event": "complete", "status": "completed", "content": "general answer"}',
+        ],
+    )
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: powabase
+
+    response = client.post(
+        "/chat",
+        json={"chatbot_id": "chatbot-1", "message": "what's the weather"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["answer"] == "general answer"
+    assert body["specialist_name"] is None
 
 
 def test_list_sessions_returns_rows_for_given_chatbot():

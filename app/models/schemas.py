@@ -12,6 +12,7 @@ class DocumentResponse(BaseModel):
 
 class ChatbotCreate(BaseModel):
     name: str = Field(..., min_length=1)
+    purpose: Optional[str] = None
     system_prompt: Optional[str] = None
 
 
@@ -22,6 +23,7 @@ class ChatbotRename(BaseModel):
 class ChatbotResponse(BaseModel):
     id: str
     name: str
+    purpose: Optional[str] = None
     created_at: str
 
 
@@ -36,3 +38,17 @@ class ChatResponse(BaseModel):
     answer: str
     sources: list = []
     session_id: str
+    specialist_name: Optional[str] = None
+
+
+class SpecialistCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    specialty: str = Field(..., min_length=1)
+    system_prompt: Optional[str] = None
+
+
+class SpecialistResponse(BaseModel):
+    id: str
+    name: str
+    specialty: str
+    created_at: str

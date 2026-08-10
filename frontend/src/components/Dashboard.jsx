@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../AuthContext";
 import AgentsPanel from "./AgentsPanel";
 import DocumentsPanel from "./DocumentsPanel";
+import SpecialistsPanel from "./SpecialistsPanel";
 import ChatWindow from "./ChatWindow";
 import OnboardingGuide from "./OnboardingGuide";
 
@@ -27,7 +28,10 @@ export default function Dashboard() {
         <AgentsPanel selectedId={selectedChatbotId} onSelect={setSelectedChatbotId} />
         {selectedChatbotId ? (
           <>
-            <DocumentsPanel chatbotId={selectedChatbotId} />
+            <div className="side-panels">
+              <DocumentsPanel chatbotId={selectedChatbotId} />
+              <SpecialistsPanel chatbotId={selectedChatbotId} />
+            </div>
             <ChatWindow chatbotId={selectedChatbotId} />
           </>
         ) : (

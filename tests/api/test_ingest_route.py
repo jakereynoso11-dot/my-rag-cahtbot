@@ -44,6 +44,11 @@ class FakePostgrestClient:
     async def insert(self, table, values, *, access_token):
         return {**values, "id": "row-1"}
 
+    async def select(self, table, columns, *, filters=None, order=None, access_token):
+        if table == "chatbot_specialists":
+            return []
+        raise AssertionError(f"unexpected select on {table}")
+
 
 class FakePowabaseClient:
     async def create_knowledge_base(self, name):

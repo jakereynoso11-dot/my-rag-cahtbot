@@ -38,10 +38,19 @@ async def create_my_chatbot(
     powabase: PowabaseClient = Depends(get_powabase_client),
 ):
     chatbot = await create_chatbot(
-        user["id"], req.name, req.system_prompt, access_token, postgrest, powabase
+        user["id"],
+        req.name,
+        req.purpose,
+        req.system_prompt,
+        access_token,
+        postgrest,
+        powabase,
     )
     return await postgrest.select_one(
-        "chatbots", {"id": chatbot.id}, "id,name,created_at", access_token=access_token
+        "chatbots",
+        {"id": chatbot.id},
+        "id,name,purpose,created_at",
+        access_token=access_token,
     )
 
 

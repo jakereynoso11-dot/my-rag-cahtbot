@@ -13,6 +13,7 @@ class FakePostgrestClient:
         self.update_calls = []
         self.register_or_get_document_result = None
         self.attach_document_to_chatbot_result = None
+        self.specialist_rows = []
 
     async def rpc(self, function_name, payload, *, access_token):
         self.rpc_calls.append((function_name, payload, access_token))
@@ -25,6 +26,11 @@ class FakePostgrestClient:
     async def update(self, table, filters, values, *, access_token):
         self.update_calls.append((table, filters, values, access_token))
         return [values]
+
+    async def select(self, table, columns, *, filters=None, order=None, access_token):
+        if table == "chatbot_specialists":
+            return self.specialist_rows
+        raise AssertionError(f"unexpected select on {table}")
 
 
 class FakePowabaseClient:
@@ -157,6 +163,43 @@ async def test_ingest_existing_indexed_document_skips_reingest():
     assert powabase.create_kb_calls == []
     assert postgrest.update_calls == []
     assert powabase.link_agent_calls == [("agent-2", "kb-existing")]
+
+
+async def test_ingest_shares_document_with_existing_specialists():
+    postgrest = FakePostgrestClient()
+    postgrest.register_or_get_document_result = [
+        {
+            "id": "doc-1",
+            "is_new": False,
+            "index_status": "indexed",
+            "powabase_source_id": "src-existing",
+            "powabase_knowledge_base_id": "kb-existing",
+        }
+    ]
+    postgrest.attach_document_to_chatbot_result = {"id": "cd-2"}
+    postgrest.specialist_rows = [
+        {"powabase_agent_id": "specialist-agent-1"},
+        {"powabase_agent_id": "specialist-agent-2"},
+    ]
+    powabase = FakePowabaseClient()
+
+    await ingest_document_for_chatbot(
+        content=b"fake bytes",
+        filename="doc.pdf",
+        mime_type="application/pdf",
+        chatbot_id="cb-2",
+        agent_id="agent-2",
+        access_token=USER_JWT,
+        service_role_key=SERVICE_ROLE_KEY,
+        postgrest=postgrest,
+        powabase=powabase,
+    )
+
+    assert powabase.link_agent_calls == [
+        ("agent-2", "kb-existing"),
+        ("specialist-agent-1", "kb-existing"),
+        ("specialist-agent-2", "kb-existing"),
+    ]
 
 
 async def test_ingest_raises_and_records_extraction_not_usable():

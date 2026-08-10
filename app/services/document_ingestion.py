@@ -21,6 +21,18 @@ def compute_sha256(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+async def _specialist_agent_ids(
+    chatbot_id: str, access_token: str, postgrest: PostgrestClient
+) -> list:
+    rows = await postgrest.select(
+        "chatbot_specialists",
+        "powabase_agent_id",
+        filters={"chatbot_id": chatbot_id},
+        access_token=access_token,
+    )
+    return [row["powabase_agent_id"] for row in rows]
+
+
 async def ingest_document_for_chatbot(
     *,
     content: bytes,
@@ -95,6 +107,11 @@ async def ingest_document_for_chatbot(
     )
 
     await powabase.add_knowledge_base_to_agent(agent_id, kb_id)
+
+    for specialist_agent_id in await _specialist_agent_ids(
+        chatbot_id, access_token, postgrest
+    ):
+        await powabase.add_knowledge_base_to_agent(specialist_agent_id, kb_id)
 
     return DocumentIngestResult(
         document_id=document_id,

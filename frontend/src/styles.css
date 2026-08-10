@@ -206,6 +206,30 @@ button {
   resize: vertical;
 }
 
+.agent-create-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #8a8f98;
+  margin-top: 0.25rem;
+}
+
+.agent-create-label:first-of-type {
+  margin-top: 0;
+}
+
+.agent-create-optional {
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: #5c6270;
+}
+
+.agent-create-actions button[type="submit"]:disabled {
+  opacity: 0.6;
+}
+
 .agent-create-actions {
   display: flex;
   gap: 0.5rem;
@@ -248,9 +272,24 @@ button {
   color: #e6e6e6;
 }
 
-.agent-name {
+.agent-name-block {
   cursor: pointer;
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.agent-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-purpose {
+  font-size: 0.72rem;
+  color: #5c6270;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -350,11 +389,19 @@ button {
 
 /* Documents panel */
 
-.documents-panel {
+.side-panels {
   width: 260px;
   border-right: 1px solid #262b36;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.documents-panel {
+  flex: 1 1 50%;
   padding: 1rem;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .documents-panel h2 {
@@ -409,6 +456,120 @@ button {
 
 .doc-status-failed {
   color: #ff6b6b;
+}
+
+/* Specialists panel */
+
+.specialists-panel {
+  flex: 1 1 50%;
+  padding: 1rem;
+  overflow-y: auto;
+  min-height: 0;
+  border-top: 1px solid #262b36;
+}
+
+.specialists-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.specialists-panel-header h2 {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.specialists-panel-hint {
+  font-size: 0.72rem;
+  color: #5c6270;
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+
+.specialist-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #171a21;
+  border: 1px solid #262b36;
+}
+
+.specialist-create-form input,
+.specialist-create-form textarea {
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #2c313c;
+  background: #0f1115;
+  color: #e6e6e6;
+  font-family: inherit;
+  font-size: 0.8rem;
+  resize: vertical;
+}
+
+.specialist-create-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.specialist-create-actions button[type="submit"] {
+  padding: 0.4rem 0.9rem;
+  border: none;
+  border-radius: 6px;
+  background: #4f7cff;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.specialist-create-actions button[type="submit"]:disabled {
+  opacity: 0.6;
+}
+
+.specialists-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.specialist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  background: #171a21;
+}
+
+.specialist-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.specialist-name {
+  font-size: 0.82rem;
+  color: #e6e6e6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.specialist-specialty {
+  font-size: 0.72rem;
+  color: #8a8f98;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Chat area */
@@ -520,6 +681,16 @@ button {
 .chat-bubble-error {
   border-color: #ff6b6b;
   color: #ff6b6b;
+}
+
+.chat-specialist-badge {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #8a9cff;
+  margin-bottom: 0.25rem;
 }
 
 .chat-input-row {
