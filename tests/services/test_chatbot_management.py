@@ -90,7 +90,12 @@ async def test_create_chatbot_uses_custom_system_prompt():
     assert postgrest.insert_calls == [
         (
             "chatbots",
-            {"owner_id": "user-1", "name": "Tax Docs Helper", "powabase_agent_id": "agent-new"},
+            {
+                "owner_id": "user-1",
+                "name": "Tax Docs Helper",
+                "powabase_agent_id": "agent-new",
+                "system_prompt": "You're a tax assistant.",
+            },
             TOKEN,
         )
     ]
@@ -103,6 +108,7 @@ async def test_create_chatbot_falls_back_to_default_system_prompt():
     await create_chatbot("user-1", "Recipe Box", None, TOKEN, postgrest, powabase)
 
     assert powabase.create_agent_calls == [("Recipe Box", SYSTEM_PROMPT)]
+    assert postgrest.insert_calls[0][1]["system_prompt"] == SYSTEM_PROMPT
 
 
 async def test_get_owned_chatbot_returns_chatbot():

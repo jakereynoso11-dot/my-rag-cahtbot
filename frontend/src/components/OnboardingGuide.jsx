@@ -5,23 +5,23 @@ const STORAGE_KEY = "rag_chatbot_onboarding_complete";
 const STEPS = [
   {
     title: "Welcome to Knowledge Assistant",
-    body: "This quick tour shows you how to set up and chat with your own AI agents. It only takes a minute.",
+    body: "This quick tour shows you how to set up and chat with your own AI chatbots. It only takes a minute.",
   },
   {
-    title: "1. Create an agent",
-    body: 'In the left sidebar, click "+ New" to create an agent. Give it a name and, optionally, instructions for how it should behave — e.g. "You\'re a tax assistant, only answer from the uploaded documents."',
+    title: "1. Create a chatbot",
+    body: 'On the My Chatbots page, click "+ Create Chatbot". Give it a name and its purpose — e.g. "You\'re a tax assistant, only answer from the uploaded documents." It\'ll show up as a new row in your chatbots table.',
   },
   {
     title: "2. Upload documents",
-    body: "Select an agent, then use the Documents panel to upload PDFs. Each agent only sees the documents you give it — uploads never mix between agents.",
+    body: "Click a chatbot to open it, then use the Documents panel to upload PDFs. Each chatbot only sees the documents you give it — uploads never mix between chatbots.",
   },
   {
     title: "3. Chat",
-    body: "Ask your agent questions in the chat panel. It answers using only the documents you uploaded to it, and keeps a history of your conversations so you can pick up where you left off.",
+    body: "Ask your chatbot questions in the chat panel. It answers using only the documents you uploaded to it, and keeps a history of your conversations so you can pick up where you left off.",
   },
   {
     title: "You're all set",
-    body: "Create as many agents as you like — one per project, topic, or use case. You can rename or delete an agent anytime from the sidebar. Click \"? Help\" in the header to see this tour again.",
+    body: "Create as many chatbots as you like — one per project, topic, or use case. You can rename or delete a chatbot anytime from the My Chatbots table. Click \"? Help\" in the header to see this tour again.",
   },
 ];
 

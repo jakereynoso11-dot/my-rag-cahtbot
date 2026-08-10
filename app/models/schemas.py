@@ -23,6 +23,7 @@ class ChatbotResponse(BaseModel):
     id: str
     name: str
     created_at: str
+    system_prompt: Optional[str] = None
 
 
 class ChatRequest(BaseModel):

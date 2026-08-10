@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "../AuthContext";
-import AgentsPanel from "./AgentsPanel";
+import ChatbotsList from "./ChatbotsList";
 import DocumentsPanel from "./DocumentsPanel";
 import ChatWindow from "./ChatWindow";
 import OnboardingGuide from "./OnboardingGuide";
 
 export default function Dashboard() {
   const { session, logout } = useAuth();
-  const [selectedChatbotId, setSelectedChatbotId] = useState(null);
+  const [selectedChatbot, setSelectedChatbot] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
 
   return (
@@ -24,16 +24,26 @@ export default function Dashboard() {
         </div>
       </header>
       <div className="dashboard-body">
-        <AgentsPanel selectedId={selectedChatbotId} onSelect={setSelectedChatbotId} />
-        {selectedChatbotId ? (
-          <>
-            <DocumentsPanel chatbotId={selectedChatbotId} />
-            <ChatWindow chatbotId={selectedChatbotId} />
-          </>
-        ) : (
-          <div className="empty-state-main">
-            <p>Create an agent on the left to get started.</p>
+        {selectedChatbot ? (
+          <div className="chatbot-workspace">
+            <div className="workspace-header">
+              <button className="link-button" onClick={() => setSelectedChatbot(null)}>
+                ← My Chatbots
+              </button>
+              <div className="workspace-title">
+                <h2>{selectedChatbot.name}</h2>
+                {selectedChatbot.system_prompt && (
+                  <p className="workspace-purpose">{selectedChatbot.system_prompt}</p>
+                )}
+              </div>
+            </div>
+            <div className="workspace-body">
+              <DocumentsPanel chatbotId={selectedChatbot.id} />
+              <ChatWindow chatbotId={selectedChatbot.id} />
+            </div>
           </div>
+        ) : (
+          <ChatbotsList onOpen={setSelectedChatbot} />
         )}
       </div>
     </div>
