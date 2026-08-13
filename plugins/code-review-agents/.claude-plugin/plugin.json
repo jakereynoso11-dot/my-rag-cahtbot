@@ -1,0 +1,11 @@
+{
+  "name": "code-review-agents",
+  "displayName": "Code Review Agents",
+  "version": "1.0.0",
+  "description": "Automates pull request code review using five parallel specialized agents (CLAUDE.md compliance, bug detection, git history context, PR comment history, and code comment verification). Findings are confidence-scored 0-100 and only high-confidence issues are posted as GitHub review comments.",
+  "author": {
+    "name": "my-rag-cahtbot maintainers"
+  },
+  "keywords": ["code-review", "pull-request", "github", "agents", "ci"],
+  "license": "MIT"
+}
