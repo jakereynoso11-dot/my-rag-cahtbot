@@ -1,10 +1,12 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import * as api from "./api";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => api.loadSession());
+
+  useEffect(() => api.onSessionChange(setSession), []);
 
   const login = useCallback(async (email, password) => {
     const s = await api.signin(email, password);
