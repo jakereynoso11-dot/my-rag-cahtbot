@@ -4,6 +4,19 @@ const POWABASE_ANON_KEY = import.meta.env.VITE_POWABASE_ANON_KEY;
 
 const SESSION_KEY = "rag_chatbot_session";
 
+let sessionListeners = [];
+
+export function onSessionChange(callback) {
+  sessionListeners.push(callback);
+  return () => {
+    sessionListeners = sessionListeners.filter((cb) => cb !== callback);
+  };
+}
+
+function notifySessionChange(session) {
+  sessionListeners.forEach((cb) => cb(session));
+}
+
 export function loadSession() {
   const raw = localStorage.getItem(SESSION_KEY);
   return raw ? JSON.parse(raw) : null;
@@ -11,10 +24,12 @@ export function loadSession() {
 
 function saveSession(session) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  notifySessionChange(session);
 }
 
 export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
+  notifySessionChange(null);
 }
 
 async function authRequest(path, body) {
