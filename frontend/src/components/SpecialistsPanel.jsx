@@ -84,7 +84,9 @@ export default function SpecialistsPanel({ chatbotId }) {
       </div>
       <p className="specialists-panel-hint">
         Optional. Add specialists for specific topics (e.g. "Billing") and this
-        chatbot will automatically hand off matching questions to them.
+        chatbot will automatically hand off matching questions to them. No
+        documents required — a specialist works right away and can pick up
+        documents later if you add any.
       </p>
 
       {creating && (
@@ -105,7 +107,7 @@ export default function SpecialistsPanel({ chatbotId }) {
             required
           />
           <textarea
-            placeholder="Extra instructions (optional)"
+            placeholder='Extra instructions (optional), e.g. "Keep answers short and always mention the relevant policy number."'
             value={newPrompt}
             onChange={(e) => setNewPrompt(e.target.value)}
             rows={2}

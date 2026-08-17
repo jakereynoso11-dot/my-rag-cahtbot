@@ -20,6 +20,10 @@ const STEPS = [
     body: "Ask your agent questions in the chat panel. It answers using only the documents you uploaded to it, and keeps a history of your conversations so you can pick up where you left off.",
   },
   {
+    title: "4. Add specialists (optional)",
+    body: 'In the Specialists panel, click "+ New" to spin up a topic expert — e.g. a "Billing Agent" specializing in "billing and invoice questions," or a "Returns Agent" for "return and refund policy." No documents needed to create one: it works immediately, inherits any documents the chatbot already has, and your chatbot automatically hands off matching questions to it.',
+  },
+  {
     title: "You're all set",
     body: "Create as many agents as you like — one per project, topic, or use case. You can rename or delete an agent anytime from the sidebar. Click \"? Help\" in the header to see this tour again.",
   },
