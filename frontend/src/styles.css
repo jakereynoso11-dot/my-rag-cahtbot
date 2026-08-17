@@ -16,12 +16,12 @@ button {
 
 .error-text {
   color: #ff6b6b;
-  font-size: 0.98rem;
+  font-size: 1.18rem;
 }
 
 .empty-text {
   color: #8a8f98;
-  font-size: 1.03rem;
+  font-size: 1.24rem;
 }
 
 /* Auth */
@@ -37,7 +37,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  width: 320px;
+  width: 380px;
   background: #171a21;
   padding: 2rem;
   border-radius: 12px;
@@ -46,7 +46,7 @@ button {
 
 .auth-form h1 {
   margin: 0 0 0.5rem;
-  font-size: 1.61rem;
+  font-size: 1.93rem;
 }
 
 .auth-form input {
@@ -75,19 +75,19 @@ button {
   background: none;
   border: none;
   color: #8a9cff;
-  font-size: 0.98rem;
+  font-size: 1.18rem;
   padding: 0;
 }
 
 .auth-error {
   color: #ff6b6b;
-  font-size: 0.98rem;
+  font-size: 1.18rem;
   margin: 0;
 }
 
 .auth-info {
   color: #6bd48f;
-  font-size: 0.98rem;
+  font-size: 1.18rem;
   margin: 0;
 }
 
@@ -108,7 +108,7 @@ button {
 }
 
 .dashboard-header h1 {
-  font-size: 1.26rem;
+  font-size: 1.51rem;
   margin: 0;
 }
 
@@ -116,12 +116,12 @@ button {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 0.98rem;
+  font-size: 1.18rem;
   color: #8a8f98;
 }
 
 .header-right button {
-  padding: 0.4rem 0.8rem;
+  padding: 0.55rem 1rem;
   border-radius: 6px;
   border: 1px solid #2c313c;
   background: #171a21;
@@ -133,7 +133,7 @@ button {
   border: none;
   background: none;
   color: #8a9cff;
-  font-size: 0.98rem;
+  font-size: 1.18rem;
 }
 
 .dashboard-body {
@@ -148,13 +148,13 @@ button {
   align-items: center;
   justify-content: center;
   color: #8a8f98;
-  font-size: 1.09rem;
+  font-size: 1.31rem;
 }
 
 /* Agents panel */
 
 .agents-panel {
-  width: 240px;
+  width: 300px;
   border-right: 1px solid #262b36;
   padding: 1rem;
   overflow-y: auto;
@@ -170,7 +170,7 @@ button {
 }
 
 .agents-panel-header h2 {
-  font-size: 1.09rem;
+  font-size: 1.31rem;
   margin: 0;
 }
 
@@ -180,7 +180,7 @@ button {
   border: 1px solid #2c313c;
   background: #171a21;
   color: #e6e6e6;
-  font-size: 0.86rem;
+  font-size: 1.03rem;
 }
 
 .agent-create-form {
@@ -196,18 +196,18 @@ button {
 
 .agent-create-form input,
 .agent-create-form textarea {
-  padding: 0.5rem 0.6rem;
+  padding: 0.65rem 0.8rem;
   border-radius: 6px;
   border: 1px solid #2c313c;
   background: #0f1115;
   color: #e6e6e6;
   font-family: inherit;
-  font-size: 0.92rem;
+  font-size: 1.1rem;
   resize: vertical;
 }
 
 .agent-create-label {
-  font-size: 0.83rem;
+  font-size: 1.0rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -237,12 +237,12 @@ button {
 }
 
 .agent-create-actions button[type="submit"] {
-  padding: 0.4rem 0.9rem;
+  padding: 0.55rem 1.1rem;
   border: none;
   border-radius: 6px;
   background: #4f7cff;
   color: white;
-  font-size: 0.92rem;
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
@@ -262,7 +262,7 @@ button {
   gap: 0.5rem;
   padding: 0.45rem 0.6rem;
   border-radius: 6px;
-  font-size: 0.98rem;
+  font-size: 1.18rem;
   color: #8a8f98;
 }
 
@@ -288,7 +288,7 @@ button {
 }
 
 .agent-purpose {
-  font-size: 0.83rem;
+  font-size: 1.0rem;
   color: #5c6270;
   white-space: nowrap;
   overflow: hidden;
@@ -316,7 +316,7 @@ button {
   border: 1px solid #4f7cff;
   background: #0f1115;
   color: #e6e6e6;
-  font-size: 0.98rem;
+  font-size: 1.18rem;
 }
 
 /* Onboarding guide */
@@ -332,7 +332,7 @@ button {
 }
 
 .onboarding-card {
-  width: 420px;
+  width: 500px;
   max-width: 90vw;
   background: #171a21;
   border: 1px solid #262b36;
@@ -342,7 +342,7 @@ button {
 
 .onboarding-progress {
   margin: 0 0 0.5rem;
-  font-size: 0.86rem;
+  font-size: 1.03rem;
   color: #8a8f98;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -350,14 +350,14 @@ button {
 
 .onboarding-card h2 {
   margin: 0 0 0.75rem;
-  font-size: 1.32rem;
+  font-size: 1.58rem;
 }
 
 .onboarding-card p:not(.onboarding-progress) {
   margin: 0 0 1.25rem;
   line-height: 1.5;
   color: #c7cad1;
-  font-size: 1.03rem;
+  font-size: 1.24rem;
 }
 
 .onboarding-actions {
@@ -377,7 +377,7 @@ button {
   border: 1px solid #2c313c;
   background: #0f1115;
   color: #e6e6e6;
-  font-size: 0.98rem;
+  font-size: 1.18rem;
 }
 
 .onboarding-nav button:last-child {
@@ -390,7 +390,7 @@ button {
 /* Documents panel */
 
 .side-panels {
-  width: 260px;
+  width: 320px;
   border-right: 1px solid #262b36;
   display: flex;
   flex-direction: column;
@@ -405,7 +405,7 @@ button {
 }
 
 .documents-panel h2 {
-  font-size: 1.09rem;
+  font-size: 1.31rem;
   margin: 0 0 0.75rem;
 }
 
@@ -415,7 +415,7 @@ button {
   padding: 1.25rem 0.5rem;
   border: 1px dashed #3a4150;
   border-radius: 8px;
-  font-size: 0.92rem;
+  font-size: 1.1rem;
   color: #8a8f98;
   cursor: pointer;
   margin-bottom: 0.75rem;
@@ -434,7 +434,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  font-size: 0.92rem;
+  font-size: 1.1rem;
   padding: 0.4rem 0.5rem;
   border-radius: 6px;
   background: #171a21;
@@ -445,7 +445,7 @@ button {
 }
 
 .doc-status {
-  font-size: 0.8rem;
+  font-size: 0.96rem;
   text-transform: uppercase;
   color: #8a8f98;
 }
@@ -476,12 +476,12 @@ button {
 }
 
 .specialists-panel-header h2 {
-  font-size: 1.09rem;
+  font-size: 1.31rem;
   margin: 0;
 }
 
 .specialists-panel-hint {
-  font-size: 0.83rem;
+  font-size: 1.0rem;
   color: #5c6270;
   margin: 0 0 0.75rem;
   line-height: 1.4;
@@ -500,13 +500,13 @@ button {
 
 .specialist-create-form input,
 .specialist-create-form textarea {
-  padding: 0.5rem 0.6rem;
+  padding: 0.65rem 0.8rem;
   border-radius: 6px;
   border: 1px solid #2c313c;
   background: #0f1115;
   color: #e6e6e6;
   font-family: inherit;
-  font-size: 0.92rem;
+  font-size: 1.1rem;
   resize: vertical;
 }
 
@@ -517,12 +517,12 @@ button {
 }
 
 .specialist-create-actions button[type="submit"] {
-  padding: 0.4rem 0.9rem;
+  padding: 0.55rem 1.1rem;
   border: none;
   border-radius: 6px;
   background: #4f7cff;
   color: white;
-  font-size: 0.92rem;
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
@@ -557,7 +557,7 @@ button {
 }
 
 .specialist-name {
-  font-size: 0.94rem;
+  font-size: 1.13rem;
   color: #e6e6e6;
   white-space: nowrap;
   overflow: hidden;
@@ -565,7 +565,7 @@ button {
 }
 
 .specialist-specialty {
-  font-size: 0.83rem;
+  font-size: 1.0rem;
   color: #8a8f98;
   white-space: nowrap;
   overflow: hidden;
@@ -581,7 +581,7 @@ button {
 }
 
 .sessions-panel {
-  width: 200px;
+  width: 240px;
   border-right: 1px solid #262b36;
   padding: 1rem 0.75rem;
   overflow-y: auto;
@@ -613,7 +613,7 @@ button {
   gap: 0.4rem;
   padding: 0.4rem 0.5rem;
   border-radius: 6px;
-  font-size: 0.92rem;
+  font-size: 1.1rem;
   color: #8a8f98;
   cursor: pointer;
 }
@@ -634,7 +634,7 @@ button {
 .session-delete-button {
   opacity: 0;
   padding: 0.05rem 0.35rem;
-  font-size: 0.86rem;
+  font-size: 1.03rem;
 }
 
 .session-item:hover .session-delete-button {
@@ -663,7 +663,7 @@ button {
   border-radius: 12px;
   line-height: 1.4;
   white-space: pre-wrap;
-  font-size: 1.03rem;
+  font-size: 1.24rem;
 }
 
 .chat-bubble-user {
@@ -685,7 +685,7 @@ button {
 
 .chat-specialist-badge {
   display: block;
-  font-size: 0.78rem;
+  font-size: 0.94rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -709,7 +709,7 @@ button {
   background: #171a21;
   color: #e6e6e6;
   font-family: inherit;
-  font-size: 1.03rem;
+  font-size: 1.24rem;
 }
 
 .chat-input-row button {
