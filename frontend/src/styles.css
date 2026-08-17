@@ -658,12 +658,12 @@ button {
 }
 
 .chat-bubble {
-  max-width: 65%;
-  padding: 0.6rem 0.9rem;
+  max-width: 85%;
+  padding: 0.75rem 1.1rem;
   border-radius: 12px;
   line-height: 1.4;
   white-space: pre-wrap;
-  font-size: 1.24rem;
+  font-size: 1.74rem;
 }
 
 .chat-bubble-user {
@@ -703,13 +703,13 @@ button {
 .chat-input-row textarea {
   flex: 1;
   resize: none;
-  padding: 0.6rem 0.75rem;
+  padding: 0.75rem 1rem;
   border-radius: 8px;
   border: 1px solid #2c313c;
   background: #171a21;
   color: #e6e6e6;
   font-family: inherit;
-  font-size: 1.24rem;
+  font-size: 1.74rem;
 }
 
 .chat-input-row button {
