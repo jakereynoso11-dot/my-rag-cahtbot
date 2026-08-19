@@ -59,6 +59,20 @@ async def test_get_answer_raises_on_error_event():
         await service.get_answer("hello")
 
 
+async def test_get_answer_returns_citations_from_complete_event():
+    client = FakePowabaseClient(
+        lines=[
+            'data: {"event": "complete", "status": "completed", "content": "hi",'
+            ' "citations": [{"title": "policy.pdf", "snippet": "..."}]}'
+        ]
+    )
+    service = ChatService(client=client, agent_id="agent-1")
+
+    result = await service.get_answer("hello")
+
+    assert result.sources == [{"title": "policy.pdf", "snippet": "..."}]
+
+
 async def test_get_answer_raises_when_run_status_is_failed():
     client = FakePowabaseClient(
         lines=['data: {"event": "complete", "status": "failed", "error": "model error"}']

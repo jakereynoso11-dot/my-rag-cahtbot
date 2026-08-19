@@ -1,6 +1,10 @@
 import pytest
 
-from app.services.document_ingestion import ingest_document_for_chatbot
+from app.services.document_ingestion import (
+    SessionNotFoundError,
+    ingest_document_for_chatbot,
+    ingest_document_for_session,
+)
 from app.services.ingest_service import ExtractionNotUsableError
 
 USER_JWT = "user-jwt-token"
@@ -8,12 +12,14 @@ SERVICE_ROLE_KEY = "service-role-key"
 
 
 class FakePostgrestClient:
-    def __init__(self):
+    def __init__(self, session_row=None):
         self.rpc_calls = []
         self.update_calls = []
+        self.insert_calls = []
         self.register_or_get_document_result = None
         self.attach_document_to_chatbot_result = None
         self.specialist_rows = []
+        self.session_row = session_row
 
     async def rpc(self, function_name, payload, *, access_token):
         self.rpc_calls.append((function_name, payload, access_token))
@@ -32,11 +38,21 @@ class FakePostgrestClient:
             return self.specialist_rows
         raise AssertionError(f"unexpected select on {table}")
 
+    async def select_one(self, table, filters, columns, *, access_token):
+        if table == "chat_sessions":
+            return self.session_row
+        raise AssertionError(f"unexpected select_one on {table}")
+
+    async def insert(self, table, values, *, access_token):
+        self.insert_calls.append((table, values, access_token))
+        return {"id": "session-doc-1", **values}
+
 
 class FakePowabaseClient:
     def __init__(self):
         self.create_kb_calls = []
         self.link_agent_calls = []
+        self.create_agent_calls = []
         self.create_kb_result = {"id": "kb-new"}
         self.upload_source_result = {"id": "src-1"}
         self.source_statuses = ["extracted"]
@@ -68,6 +84,10 @@ class FakePowabaseClient:
     async def add_knowledge_base_to_agent(self, agent_id, kb_id):
         self.link_agent_calls.append((agent_id, kb_id))
         return {"id": "link-1"}
+
+    async def create_agent(self, name, system_prompt):
+        self.create_agent_calls.append((name, system_prompt))
+        return {"id": "session-agent-new"}
 
 
 async def test_ingest_new_document_creates_kb_and_indexes():
@@ -238,3 +258,94 @@ async def test_ingest_raises_and_records_extraction_not_usable():
 
     assert not any(call[0] == "attach_document_to_chatbot" for call in postgrest.rpc_calls)
     assert powabase.link_agent_calls == []
+
+
+async def test_ingest_for_session_creates_dedicated_agent_on_first_upload():
+    postgrest = FakePostgrestClient(session_row={"id": "sess-1", "powabase_agent_id": None})
+    postgrest.register_or_get_document_result = [
+        {
+            "id": "doc-1",
+            "is_new": True,
+            "index_status": "pending",
+            "powabase_source_id": None,
+            "powabase_knowledge_base_id": None,
+        }
+    ]
+    powabase = FakePowabaseClient()
+
+    result = await ingest_document_for_session(
+        content=b"fake bytes",
+        filename="notes.pdf",
+        mime_type="application/pdf",
+        session_id="sess-1",
+        access_token=USER_JWT,
+        service_role_key=SERVICE_ROLE_KEY,
+        postgrest=postgrest,
+        powabase=powabase,
+    )
+
+    assert result.document_id == "doc-1"
+    assert result.session_document_id == "session-doc-1"
+    assert powabase.create_agent_calls == [("session-sess-1", powabase.create_agent_calls[0][1])]
+    assert powabase.link_agent_calls == [("session-agent-new", "kb-new")]
+    assert (
+        "chat_sessions",
+        {"id": "sess-1"},
+        {"powabase_agent_id": "session-agent-new"},
+        USER_JWT,
+    ) in postgrest.update_calls
+    session_doc_insert = [c for c in postgrest.insert_calls if c[0] == "chat_session_documents"]
+    assert session_doc_insert == [
+        (
+            "chat_session_documents",
+            {"session_id": "sess-1", "document_id": "doc-1", "display_name": "notes.pdf"},
+            USER_JWT,
+        )
+    ]
+
+
+async def test_ingest_for_session_reuses_existing_session_agent():
+    postgrest = FakePostgrestClient(
+        session_row={"id": "sess-1", "powabase_agent_id": "session-agent-existing"}
+    )
+    postgrest.register_or_get_document_result = [
+        {
+            "id": "doc-1",
+            "is_new": False,
+            "index_status": "indexed",
+            "powabase_source_id": "src-existing",
+            "powabase_knowledge_base_id": "kb-existing",
+        }
+    ]
+    powabase = FakePowabaseClient()
+
+    await ingest_document_for_session(
+        content=b"fake bytes",
+        filename="notes.pdf",
+        mime_type="application/pdf",
+        session_id="sess-1",
+        access_token=USER_JWT,
+        service_role_key=SERVICE_ROLE_KEY,
+        postgrest=postgrest,
+        powabase=powabase,
+    )
+
+    assert powabase.create_agent_calls == []
+    assert powabase.link_agent_calls == [("session-agent-existing", "kb-existing")]
+
+
+async def test_ingest_for_session_raises_when_session_missing():
+    postgrest = FakePostgrestClient(session_row=None)
+    powabase = FakePowabaseClient()
+
+    with pytest.raises(SessionNotFoundError):
+        await ingest_document_for_session(
+            content=b"fake bytes",
+            filename="notes.pdf",
+            mime_type="application/pdf",
+            session_id="sess-missing",
+            access_token=USER_JWT,
+            service_role_key=SERVICE_ROLE_KEY,
+            postgrest=postgrest,
+            powabase=powabase,
+        )

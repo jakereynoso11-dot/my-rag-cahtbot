@@ -3,8 +3,8 @@ from pydantic import ValidationError
 
 from app.models.schemas import (
     ChatbotCreate,
-    ChatbotRename,
     ChatbotResponse,
+    ChatbotUpdate,
     ChatRequest,
     ChatResponse,
     DocumentResponse,
@@ -45,9 +45,17 @@ def test_chatbot_create_defaults_system_prompt_to_none():
     assert req.system_prompt is None
 
 
-def test_chatbot_rename_requires_name():
+def test_chatbot_update_fields_all_optional():
+    req = ChatbotUpdate()
+
+    assert req.name is None
+    assert req.purpose is None
+    assert req.system_prompt is None
+
+
+def test_chatbot_update_rejects_empty_name():
     with pytest.raises(ValidationError):
-        ChatbotRename()
+        ChatbotUpdate(name="")
 
 
 def test_chatbot_response_shape():

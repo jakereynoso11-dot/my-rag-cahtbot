@@ -8,13 +8,13 @@ from app.api.deps import (
 )
 from app.clients.postgrest_client import PostgrestClient
 from app.clients.powabase_client import PowabaseClient
-from app.models.schemas import ChatbotCreate, ChatbotRename, ChatbotResponse
+from app.models.schemas import ChatbotCreate, ChatbotResponse, ChatbotUpdate
 from app.services.chatbot_management import (
     ChatbotNotFoundError,
     create_chatbot,
     delete_chatbot,
     list_chatbots,
-    rename_chatbot,
+    update_chatbot,
 )
 
 router = APIRouter(prefix="/chatbots", tags=["chatbots"])
@@ -55,15 +55,24 @@ async def create_my_chatbot(
 
 
 @router.patch("/{chatbot_id}", response_model=ChatbotResponse)
-async def rename_my_chatbot(
+async def update_my_chatbot(
     chatbot_id: str,
-    req: ChatbotRename,
+    req: ChatbotUpdate,
     access_token: str = Depends(get_bearer_token),
     user: dict = Depends(get_current_user),
     postgrest: PostgrestClient = Depends(get_postgrest_client),
+    powabase: PowabaseClient = Depends(get_powabase_client),
 ):
     try:
-        return await rename_chatbot(chatbot_id, req.name, access_token, postgrest)
+        return await update_chatbot(
+            chatbot_id,
+            name=req.name,
+            purpose=req.purpose,
+            system_prompt=req.system_prompt,
+            access_token=access_token,
+            postgrest=postgrest,
+            powabase=powabase,
+        )
     except ChatbotNotFoundError:
         raise HTTPException(status_code=404, detail="Chatbot not found")
 

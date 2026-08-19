@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
+import CreationProgressModal from "./CreationProgressModal";
+import EditChatbotModal from "./EditChatbotModal";
 
 export default function AgentsPanel({ selectedId, onSelect }) {
   const [agents, setAgents] = useState([]);
@@ -11,8 +13,8 @@ export default function AgentsPanel({ selectedId, onSelect }) {
   const [newName, setNewName] = useState("");
   const [newPurpose, setNewPurpose] = useState("");
   const [newPrompt, setNewPrompt] = useState("");
-  const [renamingId, setRenamingId] = useState(null);
-  const [renameValue, setRenameValue] = useState("");
+  const [creationProgressError, setCreationProgressError] = useState("");
+  const [editingAgent, setEditingAgent] = useState(null);
 
   async function loadAgents(selectAfterId) {
     setLoading(true);
@@ -59,26 +61,15 @@ export default function AgentsPanel({ selectedId, onSelect }) {
     }
     setCreateError("");
     setSubmitting(true);
+    setCreationProgressError("");
     try {
       const agent = await api.createChatbot(name, purpose, newPrompt.trim());
       resetCreateForm();
       await loadAgents(agent.id);
     } catch (err) {
-      setCreateError(err.message);
+      setCreationProgressError(err.message);
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleRename(id) {
-    const name = renameValue.trim();
-    setRenamingId(null);
-    if (!name) return;
-    try {
-      await api.renameChatbot(id, name);
-      await loadAgents();
-    } catch (err) {
-      setError(err.message);
     }
   }
 
@@ -156,6 +147,25 @@ export default function AgentsPanel({ selectedId, onSelect }) {
         </form>
       )}
 
+      {(submitting || creationProgressError) && (
+        <CreationProgressModal
+          label="Creating your chatbot..."
+          error={creationProgressError}
+          onDismissError={() => setCreationProgressError("")}
+        />
+      )}
+
+      {editingAgent && (
+        <EditChatbotModal
+          chatbot={editingAgent}
+          onClose={() => setEditingAgent(null)}
+          onSaved={() => {
+            setEditingAgent(null);
+            loadAgents();
+          }}
+        />
+      )}
+
       {error && <p className="error-text">{error}</p>}
 
       {loading ? (
@@ -166,45 +176,26 @@ export default function AgentsPanel({ selectedId, onSelect }) {
         <ul className="agents-list">
           {agents.map((a) => (
             <li key={a.id} className={a.id === selectedId ? "agent-item active" : "agent-item"}>
-              {renamingId === a.id ? (
-                <input
-                  className="agent-rename-input"
-                  value={renameValue}
-                  onChange={(e) => setRenameValue(e.target.value)}
-                  onBlur={() => handleRename(a.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleRename(a.id);
-                    if (e.key === "Escape") setRenamingId(null);
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <>
-                  <span className="agent-name-block" onClick={() => onSelect(a.id)}>
-                    <span className="agent-name">{a.name}</span>
-                    {a.purpose && <span className="agent-purpose">{a.purpose}</span>}
-                  </span>
-                  <span className="agent-actions">
-                    <button
-                      className="icon-button"
-                      title="Rename"
-                      onClick={() => {
-                        setRenamingId(a.id);
-                        setRenameValue(a.name);
-                      }}
-                    >
-                      ✎
-                    </button>
-                    <button
-                      className="icon-button"
-                      title="Delete"
-                      onClick={() => handleDelete(a.id, a.name)}
-                    >
-                      ×
-                    </button>
-                  </span>
-                </>
-              )}
+              <span className="agent-name-block" onClick={() => onSelect(a.id)}>
+                <span className="agent-name">{a.name}</span>
+                {a.purpose && <span className="agent-purpose">{a.purpose}</span>}
+              </span>
+              <span className="agent-actions">
+                <button
+                  className="icon-button"
+                  title="Edit"
+                  onClick={() => setEditingAgent(a)}
+                >
+                  ✎
+                </button>
+                <button
+                  className="icon-button"
+                  title="Delete"
+                  onClick={() => handleDelete(a.id, a.name)}
+                >
+                  ×
+                </button>
+              </span>
             </li>
           ))}
         </ul>

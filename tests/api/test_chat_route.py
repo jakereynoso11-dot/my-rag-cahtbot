@@ -368,6 +368,113 @@ def test_chat_falls_back_to_parent_chatbot_when_no_specialist_matches():
     assert body["specialist_name"] is None
 
 
+def test_chat_uses_session_dedicated_agent_and_skips_specialist_routing():
+    postgrest = FakePostgrestClient(
+        existing_session={
+            "id": "sess-1",
+            "powabase_session_id": "powabase-sess-1",
+            "powabase_agent_id": "session-agent-1",
+        },
+        specialist_rows=[
+            {
+                "id": "spec-1",
+                "name": "Billing Agent",
+                "specialty": "billing questions",
+                "powabase_agent_id": "agent-billing",
+            }
+        ],
+    )
+    powabase = FakePowabaseClient(
+        specialist_answers={"session-agent-1": "answer from session docs"}
+    )
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: powabase
+
+    response = client.post(
+        "/chat",
+        json={"chatbot_id": "chatbot-1", "message": "what's in my file", "session_id": "sess-1"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["answer"] == "answer from session docs"
+    assert body["specialist_name"] is None
+    assert all("routing classifier" not in call[1] for call in powabase.run_calls)
+    assert ("session-agent-1", "what's in my file", "powabase-sess-1") in [
+        (a, m, s) for a, m, s in powabase.run_calls
+    ]
+
+
+def test_create_session_returns_new_row():
+    postgrest = FakePostgrestClient()
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.post(
+        "/chat/sessions",
+        json={"chatbot_id": "chatbot-1"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == "sess-new"
+    assert ("chat_sessions", {"chatbot_id": "chatbot-1"}) in postgrest.inserted_rows
+
+
+def test_create_session_returns_404_when_chatbot_not_owned():
+    postgrest = FakePostgrestClient(chatbot_row=None)
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.post(
+        "/chat/sessions",
+        json={"chatbot_id": "not-mine"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_rename_session_updates_title():
+    postgrest = FakePostgrestClient()
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.patch(
+        "/chat/sessions/sess-1",
+        json={"title": "New title"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "New title"
+    assert postgrest.update_calls == [
+        ("chat_sessions", {"id": "sess-1"}, {"title": "New title"})
+    ]
+
+
+def test_rename_session_returns_404_when_missing():
+    postgrest = FakePostgrestClient()
+    postgrest.update = lambda *a, **kw: _empty_update(postgrest, *a, **kw)
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.patch(
+        "/chat/sessions/not-mine",
+        json={"title": "New title"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 404
+
+
+async def _empty_update(postgrest, table, filters, values, *, access_token):
+    postgrest.update_calls.append((table, filters, values))
+    return []
+
+
 def test_list_sessions_returns_rows_for_given_chatbot():
     postgrest = FakePostgrestClient()
     app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}

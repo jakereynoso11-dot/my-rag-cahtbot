@@ -7,7 +7,7 @@ from app.services.chatbot_management import (
     delete_chatbot,
     get_owned_chatbot,
     list_chatbots,
-    rename_chatbot,
+    update_chatbot,
 )
 from app.services.chatbot_provisioning import SYSTEM_PROMPT
 
@@ -51,6 +51,7 @@ class FakePowabaseClient:
     def __init__(self):
         self.create_agent_calls = []
         self.delete_agent_calls = []
+        self.update_agent_calls = []
 
     async def create_agent(self, name, system_prompt):
         self.create_agent_calls.append((name, system_prompt))
@@ -58,6 +59,10 @@ class FakePowabaseClient:
 
     async def delete_agent(self, agent_id):
         self.delete_agent_calls.append(agent_id)
+
+    async def update_agent(self, agent_id, *, name=None, system_prompt=None):
+        self.update_agent_calls.append((agent_id, name, system_prompt))
+        return {"id": agent_id}
 
 
 async def test_list_chatbots_scopes_to_owner():
@@ -144,22 +149,48 @@ async def test_get_owned_chatbot_raises_when_missing_or_not_owned():
         await get_owned_chatbot("cb-missing", TOKEN, postgrest)
 
 
-async def test_rename_chatbot_updates_name():
-    postgrest = FakePostgrestClient(chatbot_row={"id": "cb-1", "name": "old"})
+async def test_update_chatbot_renames():
+    postgrest = FakePostgrestClient(
+        chatbot_row={"id": "cb-1", "name": "old", "powabase_agent_id": "agent-1"}
+    )
+    powabase = FakePowabaseClient()
 
-    result = await rename_chatbot("cb-1", "new name", TOKEN, postgrest)
+    result = await update_chatbot(
+        "cb-1", name="new name", purpose=None, system_prompt=None,
+        access_token=TOKEN, postgrest=postgrest, powabase=powabase,
+    )
 
     assert result["name"] == "new name"
     assert postgrest.update_calls == [
         ("chatbots", {"id": "cb-1"}, {"name": "new name"}, TOKEN)
     ]
+    assert powabase.update_agent_calls == []
 
 
-async def test_rename_chatbot_raises_when_missing_or_not_owned():
+async def test_update_chatbot_updates_instructions_only():
+    postgrest = FakePostgrestClient(
+        chatbot_row={"id": "cb-1", "name": "old", "powabase_agent_id": "agent-1"}
+    )
+    powabase = FakePowabaseClient()
+
+    await update_chatbot(
+        "cb-1", name=None, purpose=None, system_prompt="new instructions",
+        access_token=TOKEN, postgrest=postgrest, powabase=powabase,
+    )
+
+    assert powabase.update_agent_calls == [("agent-1", None, "new instructions")]
+    assert postgrest.update_calls == []
+
+
+async def test_update_chatbot_raises_when_missing_or_not_owned():
     postgrest = FakePostgrestClient(chatbot_row=None)
+    powabase = FakePowabaseClient()
 
     with pytest.raises(ChatbotNotFoundError):
-        await rename_chatbot("cb-missing", "new name", TOKEN, postgrest)
+        await update_chatbot(
+            "cb-missing", name="new name", purpose=None, system_prompt=None,
+            access_token=TOKEN, postgrest=postgrest, powabase=powabase,
+        )
 
 
 async def test_delete_chatbot_removes_row_and_agent():

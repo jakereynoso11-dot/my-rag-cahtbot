@@ -16,8 +16,10 @@ class ChatbotCreate(BaseModel):
     system_prompt: Optional[str] = None
 
 
-class ChatbotRename(BaseModel):
-    name: str = Field(..., min_length=1)
+class ChatbotUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1)
+    purpose: Optional[str] = None
+    system_prompt: Optional[str] = None
 
 
 class ChatbotResponse(BaseModel):
@@ -39,6 +41,21 @@ class ChatResponse(BaseModel):
     sources: list = []
     session_id: str
     specialist_name: Optional[str] = None
+
+
+class SessionDocumentResponse(BaseModel):
+    document_id: str
+    is_new: bool
+    index_status: str
+    session_document_id: str
+
+
+class ChatSessionCreate(BaseModel):
+    chatbot_id: str = Field(..., min_length=1)
+
+
+class ChatSessionRename(BaseModel):
+    title: str = Field(..., min_length=1)
 
 
 class SpecialistCreate(BaseModel):

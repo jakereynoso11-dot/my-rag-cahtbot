@@ -96,6 +96,28 @@ class PowabaseClient:
             )
         resp.raise_for_status()
 
+    async def update_agent(
+        self,
+        agent_id: str,
+        *,
+        name: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+    ) -> dict:
+        payload: dict[str, Any] = {}
+        if name is not None:
+            payload["name"] = name
+        if system_prompt is not None:
+            payload["system_prompt"] = system_prompt
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.patch(
+                f"{self.base_url}/api/agents/{agent_id}",
+                headers=self.headers,
+                json=payload,
+            )
+        resp.raise_for_status()
+        return resp.json()
+
     async def add_knowledge_base_to_agent(self, agent_id: str, kb_id: str) -> dict:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
@@ -122,7 +144,7 @@ class PowabaseClient:
         session_id: Optional[str] = None,
         temperature: Optional[float] = None,
     ) -> AsyncIterator[str]:
-        payload: dict[str, Any] = {"message": message}
+        payload: dict[str, Any] = {"message": message, "citations_enabled": True}
         if session_id:
             payload["session_id"] = session_id
         if temperature is not None:

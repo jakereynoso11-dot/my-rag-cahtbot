@@ -30,6 +30,7 @@ class ChatService:
         temperature: Optional[float] = None,
     ) -> ChatAnswer:
         content = ""
+        sources = []
         powabase_session_id = session_id
 
         async for line in self.client.stream_agent_run(
@@ -53,5 +54,8 @@ class ChatService:
                 if payload.get("status") == "failed":
                     raise ChatRunFailedError(payload.get("error") or "Powabase run failed")
                 content = payload.get("content", "")
+                sources = payload.get("citations") or payload.get("sources") or []
 
-        return ChatAnswer(answer=content, powabase_session_id=powabase_session_id)
+        return ChatAnswer(
+            answer=content, sources=sources, powabase_session_id=powabase_session_id
+        )

@@ -11,7 +11,7 @@ __all__ = [
     "list_chatbots",
     "create_chatbot",
     "get_owned_chatbot",
-    "rename_chatbot",
+    "update_chatbot",
     "delete_chatbot",
 ]
 
@@ -73,15 +73,41 @@ async def get_owned_chatbot(
     return Chatbot(id=row["id"], agent_id=row["powabase_agent_id"])
 
 
-async def rename_chatbot(
-    chatbot_id: str, name: str, access_token: str, postgrest: PostgrestClient
+async def update_chatbot(
+    chatbot_id: str,
+    *,
+    name: Optional[str] = None,
+    purpose: Optional[str] = None,
+    system_prompt: Optional[str] = None,
+    access_token: str,
+    postgrest: PostgrestClient,
+    powabase: PowabaseClient,
 ) -> dict:
-    rows = await postgrest.update(
-        "chatbots", {"id": chatbot_id}, {"name": name}, access_token=access_token
+    chatbot = await get_owned_chatbot(chatbot_id, access_token, postgrest)
+
+    if system_prompt is not None:
+        await powabase.update_agent(chatbot.agent_id, system_prompt=system_prompt)
+
+    values = {}
+    if name is not None:
+        values["name"] = name
+    if purpose is not None:
+        values["purpose"] = purpose
+
+    if values:
+        rows = await postgrest.update(
+            "chatbots", {"id": chatbot_id}, values, access_token=access_token
+        )
+        if not rows:
+            raise ChatbotNotFoundError(chatbot_id)
+        return rows[0]
+
+    return await postgrest.select_one(
+        "chatbots",
+        {"id": chatbot_id},
+        "id,name,purpose,created_at",
+        access_token=access_token,
     )
-    if not rows:
-        raise ChatbotNotFoundError(chatbot_id)
-    return rows[0]
 
 
 async def delete_chatbot(

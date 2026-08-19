@@ -127,6 +127,20 @@ async def test_delete_agent():
 
 
 @respx.mock
+async def test_update_agent_sends_only_provided_fields():
+    route = respx.patch(f"{BASE_URL}/api/agents/agent-1").mock(
+        return_value=httpx.Response(200, json={"id": "agent-1", "system_prompt": "new prompt"})
+    )
+    client = make_client()
+
+    result = await client.update_agent("agent-1", system_prompt="new prompt")
+
+    assert result == {"id": "agent-1", "system_prompt": "new prompt"}
+    payload = json.loads(route.calls.last.request.content)
+    assert payload == {"system_prompt": "new prompt"}
+
+
+@respx.mock
 async def test_add_knowledge_base_to_agent():
     route = respx.post(f"{BASE_URL}/api/agents/agent-1/knowledge-bases").mock(
         return_value=httpx.Response(201, json={"id": "link-1"})

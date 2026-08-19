@@ -99,14 +99,19 @@ export async function createChatbot(name, purpose, systemPrompt) {
   return data;
 }
 
-export async function renameChatbot(id, name) {
+export async function updateChatbot(id, { name, purpose, systemPrompt } = {}) {
+  const body = {};
+  if (name !== undefined) body.name = name;
+  if (purpose !== undefined) body.purpose = purpose;
+  if (systemPrompt !== undefined) body.system_prompt = systemPrompt;
+
   const resp = await apiFetch(`/chatbots/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(body),
   });
   const data = await resp.json();
-  if (!resp.ok) throw new Error(data.detail || "Could not rename agent");
+  if (!resp.ok) throw new Error(data.detail || "Could not update agent");
   return data;
 }
 
@@ -147,6 +152,46 @@ export async function deleteSpecialist(chatbotId, specialistId) {
     const data = await resp.json().catch(() => ({}));
     throw new Error(data.detail || "Could not delete specialist");
   }
+}
+
+export async function createChatSession(chatbotId) {
+  const resp = await apiFetch("/chat/sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chatbot_id: chatbotId }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "Could not start conversation");
+  return data;
+}
+
+export async function renameChatSession(id, title) {
+  const resp = await apiFetch(`/chat/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "Could not rename conversation");
+  return data;
+}
+
+export async function listSessionDocuments(sessionId) {
+  const resp = await apiFetch(`/chat/sessions/${sessionId}/documents`);
+  if (!resp.ok) throw new Error("Could not load conversation documents");
+  return resp.json();
+}
+
+export async function uploadSessionDocument(sessionId, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const resp = await apiFetch(`/chat/sessions/${sessionId}/documents`, {
+    method: "POST",
+    body: formData,
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "Upload failed");
+  return data;
 }
 
 export async function deleteChatSession(id) {

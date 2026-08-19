@@ -4,9 +4,23 @@ from typing import Optional
 
 from app.clients.postgrest_client import PostgrestClient
 from app.clients.powabase_client import PowabaseClient
+from app.services.chatbot_provisioning import SYSTEM_PROMPT
 from app.services.ingest_service import ExtractionNotUsableError, IngestService
 
-__all__ = ["DocumentIngestResult", "compute_sha256", "ingest_document_for_chatbot"]
+__all__ = [
+    "DocumentIngestResult",
+    "SessionDocumentIngestResult",
+    "SessionNotFoundError",
+    "compute_sha256",
+    "ingest_document_for_chatbot",
+    "ingest_document_for_session",
+]
+
+
+class SessionNotFoundError(Exception):
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        super().__init__(f"Chat session {session_id} not found")
 
 
 @dataclass
@@ -15,6 +29,14 @@ class DocumentIngestResult:
     is_new: bool
     index_status: str
     chatbot_document_id: str
+
+
+@dataclass
+class SessionDocumentIngestResult:
+    document_id: str
+    is_new: bool
+    index_status: str
+    session_document_id: str
 
 
 def compute_sha256(content: bytes) -> str:
@@ -33,18 +55,19 @@ async def _specialist_agent_ids(
     return [row["powabase_agent_id"] for row in rows]
 
 
-async def ingest_document_for_chatbot(
+async def _ensure_document_indexed(
     *,
     content: bytes,
     filename: str,
     mime_type: Optional[str],
-    chatbot_id: str,
-    agent_id: str,
     access_token: str,
     service_role_key: str,
     postgrest: PostgrestClient,
     powabase: PowabaseClient,
-) -> DocumentIngestResult:
+) -> tuple[str, str, str, bool]:
+    """Registers the document (deduped by content hash) and makes sure it has
+    an indexed, dedicated Powabase knowledge base. Returns
+    (document_id, kb_id, index_status, is_new)."""
     content_sha256 = compute_sha256(content)
 
     rows = await postgrest.rpc(
@@ -96,6 +119,31 @@ async def ingest_document_for_chatbot(
             access_token=service_role_key,
         )
 
+    return document_id, kb_id, index_status, doc["is_new"]
+
+
+async def ingest_document_for_chatbot(
+    *,
+    content: bytes,
+    filename: str,
+    mime_type: Optional[str],
+    chatbot_id: str,
+    agent_id: str,
+    access_token: str,
+    service_role_key: str,
+    postgrest: PostgrestClient,
+    powabase: PowabaseClient,
+) -> DocumentIngestResult:
+    document_id, kb_id, index_status, is_new = await _ensure_document_indexed(
+        content=content,
+        filename=filename,
+        mime_type=mime_type,
+        access_token=access_token,
+        service_role_key=service_role_key,
+        postgrest=postgrest,
+        powabase=powabase,
+    )
+
     chatbot_document = await postgrest.rpc(
         "attach_document_to_chatbot",
         {
@@ -115,7 +163,67 @@ async def ingest_document_for_chatbot(
 
     return DocumentIngestResult(
         document_id=document_id,
-        is_new=doc["is_new"],
+        is_new=is_new,
         index_status=index_status,
         chatbot_document_id=chatbot_document["id"],
+    )
+
+
+async def ingest_document_for_session(
+    *,
+    content: bytes,
+    filename: str,
+    mime_type: Optional[str],
+    session_id: str,
+    access_token: str,
+    service_role_key: str,
+    postgrest: PostgrestClient,
+    powabase: PowabaseClient,
+) -> SessionDocumentIngestResult:
+    """Indexes a document for a single chat session only. The session gets
+    its own dedicated Powabase agent (created lazily on first upload) so the
+    document never becomes visible to the chatbot's other conversations."""
+    session = await postgrest.select_one(
+        "chat_sessions",
+        {"id": session_id},
+        "id,powabase_agent_id",
+        access_token=access_token,
+    )
+    if not session:
+        raise SessionNotFoundError(session_id)
+
+    document_id, kb_id, index_status, is_new = await _ensure_document_indexed(
+        content=content,
+        filename=filename,
+        mime_type=mime_type,
+        access_token=access_token,
+        service_role_key=service_role_key,
+        postgrest=postgrest,
+        powabase=powabase,
+    )
+
+    session_document = await postgrest.insert(
+        "chat_session_documents",
+        {"session_id": session_id, "document_id": document_id, "display_name": filename},
+        access_token=access_token,
+    )
+
+    session_agent_id = session.get("powabase_agent_id")
+    if not session_agent_id:
+        agent = await powabase.create_agent(f"session-{session_id}", SYSTEM_PROMPT)
+        session_agent_id = agent["id"]
+        await postgrest.update(
+            "chat_sessions",
+            {"id": session_id},
+            {"powabase_agent_id": session_agent_id},
+            access_token=access_token,
+        )
+
+    await powabase.add_knowledge_base_to_agent(session_agent_id, kb_id)
+
+    return SessionDocumentIngestResult(
+        document_id=document_id,
+        is_new=is_new,
+        index_status=index_status,
+        session_document_id=session_document["id"],
     )

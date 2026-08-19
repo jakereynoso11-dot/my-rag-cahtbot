@@ -51,6 +51,7 @@ class FakePowabaseClient:
     def __init__(self):
         self.create_agent_calls = []
         self.delete_agent_calls = []
+        self.update_agent_calls = []
 
     async def create_agent(self, name, system_prompt):
         self.create_agent_calls.append((name, system_prompt))
@@ -58,6 +59,10 @@ class FakePowabaseClient:
 
     async def delete_agent(self, agent_id):
         self.delete_agent_calls.append(agent_id)
+
+    async def update_agent(self, agent_id, *, name=None, system_prompt=None):
+        self.update_agent_calls.append((agent_id, name, system_prompt))
+        return {"id": agent_id}
 
 
 @pytest.fixture(autouse=True)
@@ -127,10 +132,17 @@ def test_create_chatbot_returns_new_row():
 
 def test_rename_chatbot_updates_name():
     postgrest = FakePostgrestClient(
-        chatbot_row={"id": "cb-1", "name": "old", "created_at": "2026-01-01T00:00:00Z"}
+        chatbot_row={
+            "id": "cb-1",
+            "name": "old",
+            "powabase_agent_id": "agent-1",
+            "created_at": "2026-01-01T00:00:00Z",
+        }
     )
+    powabase = FakePowabaseClient()
     app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
     app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: powabase
 
     response = client.patch(
         "/chatbots/cb-1",
@@ -140,12 +152,41 @@ def test_rename_chatbot_updates_name():
 
     assert response.status_code == 200
     assert response.json()["name"] == "new name"
+    assert powabase.update_agent_calls == []
+
+
+def test_update_chatbot_purpose_and_instructions():
+    postgrest = FakePostgrestClient(
+        chatbot_row={
+            "id": "cb-1",
+            "name": "old",
+            "purpose": "old purpose",
+            "powabase_agent_id": "agent-1",
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+    )
+    powabase = FakePowabaseClient()
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: powabase
+
+    response = client.patch(
+        "/chatbots/cb-1",
+        json={"purpose": "new purpose", "system_prompt": "new instructions"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["purpose"] == "new purpose"
+    assert powabase.update_agent_calls == [("agent-1", None, "new instructions")]
 
 
 def test_rename_chatbot_returns_404_when_not_owned():
     postgrest = FakePostgrestClient(chatbot_row=None)
+    powabase = FakePowabaseClient()
     app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
     app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: powabase
 
     response = client.patch(
         "/chatbots/cb-missing",

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
+import CreationProgressModal from "./CreationProgressModal";
 
 export default function SpecialistsPanel({ chatbotId }) {
   const [specialists, setSpecialists] = useState([]);
@@ -11,6 +12,7 @@ export default function SpecialistsPanel({ chatbotId }) {
   const [newName, setNewName] = useState("");
   const [newSpecialty, setNewSpecialty] = useState("");
   const [newPrompt, setNewPrompt] = useState("");
+  const [creationProgressError, setCreationProgressError] = useState("");
 
   async function loadSpecialists() {
     setLoading(true);
@@ -49,12 +51,13 @@ export default function SpecialistsPanel({ chatbotId }) {
     }
     setCreateError("");
     setSubmitting(true);
+    setCreationProgressError("");
     try {
       await api.createSpecialist(chatbotId, name, specialty, newPrompt.trim());
       resetCreateForm();
       await loadSpecialists();
     } catch (err) {
-      setCreateError(err.message);
+      setCreationProgressError(err.message);
     } finally {
       setSubmitting(false);
     }
@@ -122,6 +125,14 @@ export default function SpecialistsPanel({ chatbotId }) {
             </button>
           </div>
         </form>
+      )}
+
+      {(submitting || creationProgressError) && (
+        <CreationProgressModal
+          label="Adding specialist..."
+          error={creationProgressError}
+          onDismissError={() => setCreationProgressError("")}
+        />
       )}
 
       {error && <p className="error-text">{error}</p>}
