@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 import { apiFetch, deleteChatSession } from "../api";
 import * as api from "../api";
-import { citationLabel, renderCitedText } from "../citations";
+import { citationLabel, rehypeCitationMarkers } from "../citations";
 
 export default function ChatWindow({ chatbotId }) {
   const [sessions, setSessions] = useState([]);
@@ -239,31 +242,18 @@ export default function ChatWindow({ chatbotId }) {
         </ul>
       </aside>
       <div className="chat-window">
-        {chatbotId && (
+        {chatbotId && sessionDocuments.length > 0 && (
           <div className="session-documents">
             <div className="session-documents-header">
               <span>This conversation's documents</span>
-              <label className="session-documents-upload">
-                {uploadingDoc ? "Uploading..." : "+ Attach file"}
-                <input
-                  ref={sessionFileInputRef}
-                  type="file"
-                  accept="application/pdf"
-                  onChange={handleSessionFileChange}
-                  disabled={uploadingDoc}
-                  hidden
-                />
-              </label>
             </div>
-            {sessionDocuments.length > 0 && (
-              <ul className="session-documents-list">
-                {sessionDocuments.map((doc) => (
-                  <li key={doc.id} className="session-document-chip">
-                    {doc.display_name || doc.documents?.original_filename}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ul className="session-documents-list">
+              {sessionDocuments.map((doc) => (
+                <li key={doc.id} className="session-document-chip">
+                  {doc.display_name || doc.documents?.original_filename}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
         <div className="chat-messages">
@@ -278,7 +268,18 @@ export default function ChatWindow({ chatbotId }) {
               {m.specialistName && (
                 <span className="chat-specialist-badge">{m.specialistName}</span>
               )}
-              {renderCitedText(m.content)}
+              {m.isError ? (
+                m.content
+              ) : (
+                <div className="chat-markdown">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    rehypePlugins={[rehypeCitationMarkers]}
+                  >
+                    {m.content}
+                  </ReactMarkdown>
+                </div>
+              )}
               {m.sources && m.sources.length > 0 && (
                 <ul className="citation-list">
                   {m.sources.map((src, idx) => (
@@ -295,6 +296,20 @@ export default function ChatWindow({ chatbotId }) {
         </div>
         {error && <p className="error-text">{error}</p>}
         <form className="chat-input-row" data-tour="chat-input-row" onSubmit={handleSend}>
+          <label
+            className={`chat-attach-button${uploadingDoc ? " chat-attach-uploading" : ""}`}
+            title="Attach a document to this conversation"
+          >
+            📎
+            <input
+              ref={sessionFileInputRef}
+              type="file"
+              accept="application/pdf"
+              onChange={handleSessionFileChange}
+              disabled={uploadingDoc || !chatbotId}
+              hidden
+            />
+          </label>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}

@@ -4,7 +4,7 @@ import CreateChatbotModal from "./CreateChatbotModal";
 import CreationProgressModal from "./CreationProgressModal";
 import EditChatbotModal from "./EditChatbotModal";
 
-export default function AgentsPanel({ selectedId, onSelect }) {
+export default function AgentsPanel({ selectedId, onSelect, onAgentsLoaded }) {
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -19,6 +19,7 @@ export default function AgentsPanel({ selectedId, onSelect }) {
     try {
       const rows = await api.listChatbots();
       setAgents(rows);
+      onAgentsLoaded?.(rows.length);
       if (selectAfterId) {
         onSelect(selectAfterId);
       } else if (!rows.some((r) => r.id === selectedId)) {

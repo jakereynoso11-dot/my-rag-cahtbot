@@ -89,19 +89,19 @@ function bubbleStyle(rect, placement) {
   };
 }
 
-export default function OnboardingGuide({ forceOpen, onClose }) {
+export default function OnboardingGuide({ forceOpen, isNewUser, onClose }) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const current = STEPS[step];
   const rect = useTargetRect(current?.target, open);
 
   useEffect(() => {
-    if (forceOpen || !hasSeenOnboarding()) {
+    if (forceOpen || (isNewUser && !hasSeenOnboarding())) {
       setStep(0);
       setOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forceOpen]);
+  }, [forceOpen, isNewUser]);
 
   function finish() {
     localStorage.setItem(STORAGE_KEY, "true");
