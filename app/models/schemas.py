@@ -43,6 +43,13 @@ class ChatResponse(BaseModel):
     specialist_name: Optional[str] = None
 
 
+class SpecialistDocumentResponse(BaseModel):
+    document_id: str
+    is_new: bool
+    index_status: str
+    specialist_document_id: str
+
+
 class SessionDocumentResponse(BaseModel):
     document_id: str
     is_new: bool

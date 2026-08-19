@@ -673,6 +673,7 @@ button {
   gap: 0.5rem;
   padding: 0.4rem 0.5rem;
   border-radius: 6px;
+  cursor: pointer;
   background: #171a21;
 }
 

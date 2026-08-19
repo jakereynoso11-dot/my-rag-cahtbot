@@ -51,6 +51,30 @@ async def _load_specialists(
     ]
 
 
+async def _specialist_kb_ids(
+    specialists: list[Specialist], access_token: str, postgrest: PostgrestClient
+) -> dict:
+    """Each specialist's own private document knowledge bases (not the
+    chatbot's shared ones -- those are identical across every specialist, so
+    they carry no signal for telling specialists apart during routing)."""
+    result = {}
+    for specialist in specialists:
+        rows = await postgrest.select(
+            "specialist_documents",
+            "documents(powabase_knowledge_base_id)",
+            filters={"specialist_id": specialist.id},
+            access_token=access_token,
+        )
+        kb_ids = [
+            row["documents"]["powabase_knowledge_base_id"]
+            for row in rows
+            if row.get("documents") and row["documents"].get("powabase_knowledge_base_id")
+        ]
+        if kb_ids:
+            result[specialist.id] = kb_ids
+    return result
+
+
 @router.post("", response_model=ChatResponse)
 async def chat(
     req: ChatRequest,
@@ -94,9 +118,21 @@ async def chat(
         # Like GPT Trainer's multi-agent orchestration: if this chatbot has
         # specialist sub-agents, a lightweight routing step picks the best one
         # for this message; otherwise the parent chatbot's own agent answers.
+        # When a specialist has its own private documents, the router can
+        # search them (request-scoped, not permanently linked) to make an
+        # evidence-based pick instead of matching on specialty text alone.
         specialists = await _load_specialists(chatbot.id, access_token, postgrest)
+        specialist_kb_ids = (
+            await _specialist_kb_ids(specialists, access_token, postgrest)
+            if len(specialists) > 1
+            else {}
+        )
         chosen_specialist = await choose_specialist(
-            req.message, specialists, chatbot.agent_id, powabase
+            req.message,
+            specialists,
+            chatbot.agent_id,
+            powabase,
+            specialist_kb_ids=specialist_kb_ids,
         )
 
     answering_agent_id = (

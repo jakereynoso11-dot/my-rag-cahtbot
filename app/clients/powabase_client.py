@@ -143,12 +143,19 @@ class PowabaseClient:
         message: str,
         session_id: Optional[str] = None,
         temperature: Optional[float] = None,
+        runtime_knowledge_bases: Optional[list] = None,
     ) -> AsyncIterator[str]:
         payload: dict[str, Any] = {"message": message, "citations_enabled": True}
         if session_id:
             payload["session_id"] = session_id
         if temperature is not None:
             payload["temperature"] = temperature
+        if runtime_knowledge_bases:
+            # Request-scoped KB search (up to 10 entries): lets a single run
+            # (e.g. specialist routing) search specific knowledge bases via
+            # the agent's knowledge_search tool without permanently linking
+            # them to the agent.
+            payload["runtime_knowledge_bases"] = runtime_knowledge_bases
 
         try:
             async with httpx.AsyncClient(timeout=None) as client:

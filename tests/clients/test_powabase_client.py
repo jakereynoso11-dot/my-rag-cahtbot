@@ -220,6 +220,46 @@ async def test_stream_agent_run_yields_error_event_on_http_error():
 
 
 @respx.mock
+async def test_stream_agent_run_forwards_runtime_knowledge_bases():
+    route = respx.post(f"{BASE_URL}/api/agents/agent-1/run/stream").mock(
+        return_value=httpx.Response(
+            200,
+            stream=_ChunkedStream([b'data: {"event": "complete", "content": "ok"}\n\n']),
+        )
+    )
+    client = make_client()
+
+    lines = [
+        line
+        async for line in client.stream_agent_run(
+            "agent-1",
+            message="hello",
+            runtime_knowledge_bases=[{"id": "kb-1", "top_k": 3}],
+        )
+    ]
+
+    assert lines == ['data: {"event": "complete", "content": "ok"}']
+    payload = json.loads(route.calls.last.request.content)
+    assert payload["runtime_knowledge_bases"] == [{"id": "kb-1", "top_k": 3}]
+
+
+@respx.mock
+async def test_stream_agent_run_omits_runtime_knowledge_bases_when_not_given():
+    route = respx.post(f"{BASE_URL}/api/agents/agent-1/run/stream").mock(
+        return_value=httpx.Response(
+            200,
+            stream=_ChunkedStream([b'data: {"event": "complete", "content": "ok"}\n\n']),
+        )
+    )
+    client = make_client()
+
+    [line async for line in client.stream_agent_run("agent-1", message="hello")]
+
+    payload = json.loads(route.calls.last.request.content)
+    assert "runtime_knowledge_bases" not in payload
+
+
+@respx.mock
 async def test_stream_agent_run_raises_agent_not_found_on_404():
     respx.post(f"{BASE_URL}/api/agents/agent-1/run/stream").mock(
         return_value=httpx.Response(404, json={"error": "not_found"})

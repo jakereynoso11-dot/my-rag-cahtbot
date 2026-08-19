@@ -2,8 +2,10 @@ import pytest
 
 from app.services.document_ingestion import (
     SessionNotFoundError,
+    SpecialistNotFoundError,
     ingest_document_for_chatbot,
     ingest_document_for_session,
+    ingest_document_for_specialist,
 )
 from app.services.ingest_service import ExtractionNotUsableError
 
@@ -12,7 +14,7 @@ SERVICE_ROLE_KEY = "service-role-key"
 
 
 class FakePostgrestClient:
-    def __init__(self, session_row=None):
+    def __init__(self, session_row=None, specialist_row=None):
         self.rpc_calls = []
         self.update_calls = []
         self.insert_calls = []
@@ -20,6 +22,7 @@ class FakePostgrestClient:
         self.attach_document_to_chatbot_result = None
         self.specialist_rows = []
         self.session_row = session_row
+        self.specialist_row = specialist_row
 
     async def rpc(self, function_name, payload, *, access_token):
         self.rpc_calls.append((function_name, payload, access_token))
@@ -41,6 +44,8 @@ class FakePostgrestClient:
     async def select_one(self, table, filters, columns, *, access_token):
         if table == "chat_sessions":
             return self.session_row
+        if table == "chatbot_specialists":
+            return self.specialist_row
         raise AssertionError(f"unexpected select_one on {table}")
 
     async def insert(self, table, values, *, access_token):
@@ -344,6 +349,67 @@ async def test_ingest_for_session_raises_when_session_missing():
             filename="notes.pdf",
             mime_type="application/pdf",
             session_id="sess-missing",
+            access_token=USER_JWT,
+            service_role_key=SERVICE_ROLE_KEY,
+            postgrest=postgrest,
+            powabase=powabase,
+        )
+
+
+async def test_ingest_for_specialist_links_only_that_specialists_agent():
+    postgrest = FakePostgrestClient(
+        specialist_row={"id": "spec-1", "powabase_agent_id": "agent-billing"}
+    )
+    postgrest.register_or_get_document_result = [
+        {
+            "id": "doc-1",
+            "is_new": True,
+            "index_status": "pending",
+            "powabase_source_id": None,
+            "powabase_knowledge_base_id": None,
+        }
+    ]
+    powabase = FakePowabaseClient()
+
+    result = await ingest_document_for_specialist(
+        content=b"fake bytes",
+        filename="invoice-policy.pdf",
+        mime_type="application/pdf",
+        specialist_id="spec-1",
+        access_token=USER_JWT,
+        service_role_key=SERVICE_ROLE_KEY,
+        postgrest=postgrest,
+        powabase=powabase,
+    )
+
+    assert result.document_id == "doc-1"
+    assert result.specialist_document_id == "session-doc-1"
+    assert powabase.create_agent_calls == []
+    assert powabase.link_agent_calls == [("agent-billing", "kb-new")]
+    specialist_doc_insert = [c for c in postgrest.insert_calls if c[0] == "specialist_documents"]
+    assert specialist_doc_insert == [
+        (
+            "specialist_documents",
+            {
+                "specialist_id": "spec-1",
+                "document_id": "doc-1",
+                "display_name": "invoice-policy.pdf",
+            },
+            USER_JWT,
+        )
+    ]
+
+
+async def test_ingest_for_specialist_raises_when_specialist_missing():
+    postgrest = FakePostgrestClient(specialist_row=None)
+    powabase = FakePowabaseClient()
+
+    with pytest.raises(SpecialistNotFoundError):
+        await ingest_document_for_specialist(
+            content=b"fake bytes",
+            filename="invoice-policy.pdf",
+            mime_type="application/pdf",
+            specialist_id="spec-missing",
             access_token=USER_JWT,
             service_role_key=SERVICE_ROLE_KEY,
             postgrest=postgrest,

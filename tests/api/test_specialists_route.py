@@ -33,6 +33,17 @@ class FakePostgrestClient:
         )
         self.insert_calls = []
         self.delete_calls = []
+        self.rpc_results = {
+            "register_or_get_document": [
+                {
+                    "id": "doc-1",
+                    "is_new": True,
+                    "index_status": "pending",
+                    "powabase_source_id": None,
+                    "powabase_knowledge_base_id": None,
+                }
+            ],
+        }
 
     async def select_one(self, table, filters, columns, *, access_token):
         if table == "chatbots":
@@ -41,21 +52,31 @@ class FakePostgrestClient:
             return self.specialist_row
         raise AssertionError(f"unexpected select_one on {table}")
 
+    async def rpc(self, function_name, payload, *, access_token):
+        return self.rpc_results[function_name]
+
+    async def update(self, table, filters, values, *, access_token):
+        return [values]
+
     async def select(self, table, columns, *, filters=None, order=None, access_token):
         if table == "chatbot_specialists":
             return self.list_rows
         if table == "chatbot_documents":
             return self.kb_rows
+        if table == "specialist_documents":
+            return self.list_rows
         raise AssertionError(f"unexpected select on {table}")
 
     async def insert(self, table, values, *, access_token):
         self.insert_calls.append((table, values))
-        self.specialist_row = {
-            "id": "specialist-new",
-            "created_at": "2026-01-01T00:00:00Z",
-            **values,
-        }
-        return self.specialist_row
+        if table == "chatbot_specialists":
+            self.specialist_row = {
+                "id": "specialist-new",
+                "created_at": "2026-01-01T00:00:00Z",
+                **values,
+            }
+            return self.specialist_row
+        return {"id": "specialist-doc-1", **values}
 
     async def delete(self, table, filters, *, access_token):
         self.delete_calls.append((table, filters))
@@ -66,16 +87,33 @@ class FakePowabaseClient:
     def __init__(self):
         self.create_agent_calls = []
         self.delete_agent_calls = []
+        self.link_agent_calls = []
 
     async def create_agent(self, name, system_prompt):
         self.create_agent_calls.append((name, system_prompt))
         return {"id": "specialist-agent-new"}
 
     async def add_knowledge_base_to_agent(self, agent_id, kb_id):
+        self.link_agent_calls.append((agent_id, kb_id))
         return {"id": "link-1"}
 
     async def delete_agent(self, agent_id):
         self.delete_agent_calls.append(agent_id)
+
+    async def create_knowledge_base(self, name):
+        return {"id": "kb-new"}
+
+    async def upload_source(self, filename, content):
+        return {"id": "src-1"}
+
+    async def get_source(self, source_id):
+        return {"id": source_id, "extraction_status": "extracted"}
+
+    async def add_source_to_kb(self, kb_id, source_id):
+        return {"id": "idx-1"}
+
+    async def list_kb_sources(self, kb_id):
+        return {"items": [{"id": "idx-1", "index_status": "indexed"}]}
 
 
 def override(postgrest=None, powabase=None):
@@ -181,6 +219,79 @@ def test_delete_specialist_returns_404_when_missing():
     )
 
     assert response.status_code == 404
+
+
+def test_upload_specialist_document_links_only_that_specialist():
+    postgrest = FakePostgrestClient(
+        specialist_row={"id": "spec-1", "powabase_agent_id": "agent-billing"}
+    )
+    powabase = FakePowabaseClient()
+    override(postgrest=postgrest, powabase=powabase)
+
+    response = client.post(
+        "/chatbots/chatbot-1/specialists/spec-1/documents",
+        files={"file": ("invoice-policy.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "document_id": "doc-1",
+        "is_new": True,
+        "index_status": "indexed",
+        "specialist_document_id": "specialist-doc-1",
+    }
+    assert powabase.link_agent_calls == [("agent-billing", "kb-new")]
+
+
+def test_upload_specialist_document_returns_404_when_specialist_missing():
+    postgrest = FakePostgrestClient(specialist_row=None)
+    powabase = FakePowabaseClient()
+    override(postgrest=postgrest, powabase=powabase)
+
+    response = client.post(
+        "/chatbots/chatbot-1/specialists/spec-missing/documents",
+        files={"file": ("invoice-policy.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_upload_specialist_document_returns_404_when_chatbot_not_owned():
+    postgrest = FakePostgrestClient(chatbot_row=None)
+    powabase = FakePowabaseClient()
+    override(postgrest=postgrest, powabase=powabase)
+
+    response = client.post(
+        "/chatbots/not-mine/specialists/spec-1/documents",
+        files={"file": ("invoice-policy.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_list_specialist_documents_returns_rows():
+    postgrest = FakePostgrestClient(
+        list_rows=[
+            {
+                "id": "sd-1",
+                "display_name": "invoice-policy.pdf",
+                "created_at": "2026-01-01T00:00:00Z",
+                "documents": {"index_status": "indexed", "original_filename": "invoice-policy.pdf"},
+            }
+        ]
+    )
+    override(postgrest=postgrest)
+
+    response = client.get(
+        "/chatbots/chatbot-1/specialists/spec-1/documents",
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()[0]["display_name"] == "invoice-policy.pdf"
 
 
 def test_specialists_require_auth():

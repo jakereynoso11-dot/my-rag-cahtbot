@@ -10,10 +10,13 @@ from app.services.ingest_service import ExtractionNotUsableError, IngestService
 __all__ = [
     "DocumentIngestResult",
     "SessionDocumentIngestResult",
+    "SpecialistDocumentIngestResult",
     "SessionNotFoundError",
+    "SpecialistNotFoundError",
     "compute_sha256",
     "ingest_document_for_chatbot",
     "ingest_document_for_session",
+    "ingest_document_for_specialist",
 ]
 
 
@@ -21,6 +24,12 @@ class SessionNotFoundError(Exception):
     def __init__(self, session_id: str):
         self.session_id = session_id
         super().__init__(f"Chat session {session_id} not found")
+
+
+class SpecialistNotFoundError(Exception):
+    def __init__(self, specialist_id: str):
+        self.specialist_id = specialist_id
+        super().__init__(f"Specialist {specialist_id} not found")
 
 
 @dataclass
@@ -37,6 +46,14 @@ class SessionDocumentIngestResult:
     is_new: bool
     index_status: str
     session_document_id: str
+
+
+@dataclass
+class SpecialistDocumentIngestResult:
+    document_id: str
+    is_new: bool
+    index_status: str
+    specialist_document_id: str
 
 
 def compute_sha256(content: bytes) -> str:
@@ -226,4 +243,54 @@ async def ingest_document_for_session(
         is_new=is_new,
         index_status=index_status,
         session_document_id=session_document["id"],
+    )
+
+
+async def ingest_document_for_specialist(
+    *,
+    content: bytes,
+    filename: str,
+    mime_type: Optional[str],
+    specialist_id: str,
+    access_token: str,
+    service_role_key: str,
+    postgrest: PostgrestClient,
+    powabase: PowabaseClient,
+) -> SpecialistDocumentIngestResult:
+    """Indexes a document for a single specialist only -- it's linked to that
+    specialist's own agent, not the parent chatbot or sibling specialists, so
+    it trains just this one specialist on top of whatever the chatbot already
+    shares with it."""
+    specialist = await postgrest.select_one(
+        "chatbot_specialists",
+        {"id": specialist_id},
+        "id,powabase_agent_id",
+        access_token=access_token,
+    )
+    if not specialist:
+        raise SpecialistNotFoundError(specialist_id)
+
+    document_id, kb_id, index_status, is_new = await _ensure_document_indexed(
+        content=content,
+        filename=filename,
+        mime_type=mime_type,
+        access_token=access_token,
+        service_role_key=service_role_key,
+        postgrest=postgrest,
+        powabase=powabase,
+    )
+
+    specialist_document = await postgrest.insert(
+        "specialist_documents",
+        {"specialist_id": specialist_id, "document_id": document_id, "display_name": filename},
+        access_token=access_token,
+    )
+
+    await powabase.add_knowledge_base_to_agent(specialist["powabase_agent_id"], kb_id)
+
+    return SpecialistDocumentIngestResult(
+        document_id=document_id,
+        is_new=is_new,
+        index_status=index_status,
+        specialist_document_id=specialist_document["id"],
     )

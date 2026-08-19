@@ -144,6 +144,24 @@ export async function createSpecialist(chatbotId, name, specialty, systemPrompt)
   return data;
 }
 
+export async function listSpecialistDocuments(chatbotId, specialistId) {
+  const resp = await apiFetch(`/chatbots/${chatbotId}/specialists/${specialistId}/documents`);
+  if (!resp.ok) throw new Error("Could not load specialist documents");
+  return resp.json();
+}
+
+export async function uploadSpecialistDocument(chatbotId, specialistId, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const resp = await apiFetch(
+    `/chatbots/${chatbotId}/specialists/${specialistId}/documents`,
+    { method: "POST", body: formData }
+  );
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "Upload failed");
+  return data;
+}
+
 export async function deleteSpecialist(chatbotId, specialistId) {
   const resp = await apiFetch(`/chatbots/${chatbotId}/specialists/${specialistId}`, {
     method: "DELETE",
