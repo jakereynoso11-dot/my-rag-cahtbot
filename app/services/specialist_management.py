@@ -11,6 +11,7 @@ __all__ = [
     "Specialist",
     "list_specialists",
     "create_specialist",
+    "update_specialist",
     "delete_specialist",
     "build_specialist_system_prompt",
 ]
@@ -103,6 +104,53 @@ async def create_specialist(
     )
 
     return Specialist(id=row["id"], name=name, specialty=specialty, agent_id=agent_id)
+
+
+async def update_specialist(
+    specialist_id: str,
+    chatbot_id: str,
+    *,
+    name: Optional[str] = None,
+    specialty: Optional[str] = None,
+    system_prompt: Optional[str] = None,
+    access_token: str,
+    postgrest: PostgrestClient,
+    powabase: PowabaseClient,
+) -> dict:
+    row = await postgrest.select_one(
+        "chatbot_specialists",
+        {"id": specialist_id, "chatbot_id": chatbot_id},
+        "id,specialty,powabase_agent_id",
+        access_token=access_token,
+    )
+    if not row:
+        raise SpecialistNotFoundError(specialist_id)
+
+    if system_prompt is not None:
+        effective_specialty = specialty if specialty is not None else row["specialty"]
+        full_prompt = build_specialist_system_prompt(effective_specialty, system_prompt)
+        await powabase.update_agent(row["powabase_agent_id"], system_prompt=full_prompt)
+
+    values = {}
+    if name is not None:
+        values["name"] = name
+    if specialty is not None:
+        values["specialty"] = specialty
+
+    if values:
+        rows = await postgrest.update(
+            "chatbot_specialists", {"id": specialist_id}, values, access_token=access_token
+        )
+        if not rows:
+            raise SpecialistNotFoundError(specialist_id)
+        return rows[0]
+
+    return await postgrest.select_one(
+        "chatbot_specialists",
+        {"id": specialist_id},
+        "id,name,specialty,created_at",
+        access_token=access_token,
+    )
 
 
 async def delete_specialist(

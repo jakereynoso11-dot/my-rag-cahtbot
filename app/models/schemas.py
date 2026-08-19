@@ -71,6 +71,12 @@ class SpecialistCreate(BaseModel):
     system_prompt: Optional[str] = None
 
 
+class SpecialistUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1)
+    specialty: Optional[str] = Field(None, min_length=1)
+    system_prompt: Optional[str] = None
+
+
 class SpecialistResponse(BaseModel):
     id: str
     name: str

@@ -6,6 +6,7 @@ from app.services.specialist_management import (
     create_specialist,
     delete_specialist,
     list_specialists,
+    update_specialist,
 )
 
 TOKEN = "user-jwt-token"
@@ -18,6 +19,7 @@ class FakePostgrestClient:
         self.kb_rows = kb_rows or []
         self.select_calls = []
         self.insert_calls = []
+        self.update_calls = []
         self.delete_calls = []
 
     async def select(self, table, columns, *, filters=None, order=None, access_token):
@@ -35,6 +37,13 @@ class FakePostgrestClient:
         self.insert_calls.append((table, values))
         return {"id": "specialist-new", **values}
 
+    async def update(self, table, filters, values, *, access_token):
+        self.update_calls.append((table, filters, values))
+        if self.specialist_row is None:
+            return []
+        self.specialist_row = {**self.specialist_row, **values}
+        return [self.specialist_row]
+
     async def delete(self, table, filters, *, access_token):
         self.delete_calls.append((table, filters))
         if self.specialist_row is None:
@@ -47,6 +56,7 @@ class FakePowabaseClient:
         self.create_agent_calls = []
         self.link_calls = []
         self.delete_agent_calls = []
+        self.update_agent_calls = []
 
     async def create_agent(self, name, system_prompt):
         self.create_agent_calls.append((name, system_prompt))
@@ -58,6 +68,10 @@ class FakePowabaseClient:
 
     async def delete_agent(self, agent_id):
         self.delete_agent_calls.append(agent_id)
+
+    async def update_agent(self, agent_id, *, name=None, system_prompt=None):
+        self.update_agent_calls.append((agent_id, name, system_prompt))
+        return {"id": agent_id}
 
 
 async def test_list_specialists_scopes_to_chatbot():
@@ -131,6 +145,86 @@ async def test_create_specialist_includes_custom_instructions_in_prompt():
     prompt = powabase.create_agent_calls[0][1]
     assert "billing questions" in prompt
     assert "Always mention our refund policy." in prompt
+
+
+async def test_update_specialist_renames_and_changes_specialty():
+    postgrest = FakePostgrestClient(
+        specialist_row={
+            "id": "spec-1",
+            "specialty": "billing",
+            "powabase_agent_id": "specialist-agent-1",
+        }
+    )
+    powabase = FakePowabaseClient()
+
+    result = await update_specialist(
+        "spec-1",
+        "cb-1",
+        name="New Name",
+        specialty="invoicing",
+        system_prompt=None,
+        access_token=TOKEN,
+        postgrest=postgrest,
+        powabase=powabase,
+    )
+
+    assert result["name"] == "New Name"
+    assert result["specialty"] == "invoicing"
+    assert postgrest.update_calls == [
+        (
+            "chatbot_specialists",
+            {"id": "spec-1"},
+            {"name": "New Name", "specialty": "invoicing"},
+        )
+    ]
+    assert powabase.update_agent_calls == []
+
+
+async def test_update_specialist_rebuilds_prompt_when_instructions_change():
+    postgrest = FakePostgrestClient(
+        specialist_row={
+            "id": "spec-1",
+            "specialty": "billing",
+            "powabase_agent_id": "specialist-agent-1",
+        }
+    )
+    powabase = FakePowabaseClient()
+
+    await update_specialist(
+        "spec-1",
+        "cb-1",
+        name=None,
+        specialty=None,
+        system_prompt="Always mention the refund window.",
+        access_token=TOKEN,
+        postgrest=postgrest,
+        powabase=powabase,
+    )
+
+    assert len(powabase.update_agent_calls) == 1
+    agent_id, name, prompt = powabase.update_agent_calls[0]
+    assert agent_id == "specialist-agent-1"
+    assert name is None
+    assert "billing" in prompt
+    assert "Always mention the refund window." in prompt
+    assert postgrest.update_calls == []
+
+
+async def test_update_specialist_raises_when_missing_or_not_owned():
+    postgrest = FakePostgrestClient(specialist_row=None)
+    powabase = FakePowabaseClient()
+
+    with pytest.raises(SpecialistNotFoundError):
+        await update_specialist(
+            "spec-missing",
+            "cb-1",
+            name="New Name",
+            specialty=None,
+            system_prompt=None,
+            access_token=TOKEN,
+            postgrest=postgrest,
+            powabase=powabase,
+        )
 
 
 async def test_delete_specialist_removes_row_and_agent():

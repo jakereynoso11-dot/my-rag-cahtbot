@@ -32,6 +32,7 @@ class FakePostgrestClient:
             [self.specialist_row] if self.specialist_row else []
         )
         self.insert_calls = []
+        self.update_calls = []
         self.delete_calls = []
         self.rpc_results = {
             "register_or_get_document": [
@@ -56,7 +57,11 @@ class FakePostgrestClient:
         return self.rpc_results[function_name]
 
     async def update(self, table, filters, values, *, access_token):
-        return [values]
+        self.update_calls.append((table, filters, values))
+        if self.specialist_row is None:
+            return []
+        self.specialist_row = {**self.specialist_row, **values}
+        return [self.specialist_row]
 
     async def select(self, table, columns, *, filters=None, order=None, access_token):
         if table == "chatbot_specialists":
@@ -88,6 +93,7 @@ class FakePowabaseClient:
         self.create_agent_calls = []
         self.delete_agent_calls = []
         self.link_agent_calls = []
+        self.update_agent_calls = []
 
     async def create_agent(self, name, system_prompt):
         self.create_agent_calls.append((name, system_prompt))
@@ -99,6 +105,10 @@ class FakePowabaseClient:
 
     async def delete_agent(self, agent_id):
         self.delete_agent_calls.append(agent_id)
+
+    async def update_agent(self, agent_id, *, name=None, system_prompt=None):
+        self.update_agent_calls.append((agent_id, name, system_prompt))
+        return {"id": agent_id}
 
     async def create_knowledge_base(self, name):
         return {"id": "kb-new"}
@@ -186,6 +196,83 @@ def test_create_specialist_returns_404_when_chatbot_not_owned():
     response = client.post(
         "/chatbots/not-mine/specialists",
         json={"name": "Billing Agent", "specialty": "billing questions"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_update_specialist_renames_and_updates_specialty():
+    postgrest = FakePostgrestClient(
+        specialist_row={
+            "id": "spec-1",
+            "name": "Billing Agent",
+            "specialty": "billing",
+            "created_at": "2026-01-01T00:00:00Z",
+            "powabase_agent_id": "specialist-agent-1",
+        }
+    )
+    powabase = FakePowabaseClient()
+    override(postgrest=postgrest, powabase=powabase)
+
+    response = client.patch(
+        "/chatbots/chatbot-1/specialists/spec-1",
+        json={"name": "New Name", "specialty": "invoicing"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "New Name"
+    assert response.json()["specialty"] == "invoicing"
+    assert powabase.update_agent_calls == []
+
+
+def test_update_specialist_updates_instructions():
+    postgrest = FakePostgrestClient(
+        specialist_row={
+            "id": "spec-1",
+            "name": "Billing Agent",
+            "specialty": "billing",
+            "created_at": "2026-01-01T00:00:00Z",
+            "powabase_agent_id": "specialist-agent-1",
+        }
+    )
+    powabase = FakePowabaseClient()
+    override(postgrest=postgrest, powabase=powabase)
+
+    response = client.patch(
+        "/chatbots/chatbot-1/specialists/spec-1",
+        json={"system_prompt": "Always mention the refund window."},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+    assert len(powabase.update_agent_calls) == 1
+    assert "refund window" in powabase.update_agent_calls[0][2]
+
+
+def test_update_specialist_returns_404_when_missing():
+    postgrest = FakePostgrestClient(specialist_row=None)
+    powabase = FakePowabaseClient()
+    override(postgrest=postgrest, powabase=powabase)
+
+    response = client.patch(
+        "/chatbots/chatbot-1/specialists/spec-missing",
+        json={"name": "New Name"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_update_specialist_returns_404_when_chatbot_not_owned():
+    postgrest = FakePostgrestClient(chatbot_row=None)
+    powabase = FakePowabaseClient()
+    override(postgrest=postgrest, powabase=powabase)
+
+    response = client.patch(
+        "/chatbots/not-mine/specialists/spec-1",
+        json={"name": "New Name"},
         headers={"Authorization": "Bearer test-token"},
     )
 

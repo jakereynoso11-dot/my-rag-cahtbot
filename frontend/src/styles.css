@@ -197,67 +197,11 @@ button {
   font-size: var(--fs-xs);
 }
 
-.agent-create-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  background: #171a21;
-  border: 1px solid #262b36;
-}
-
-.agent-create-form input,
-.agent-create-form textarea {
-  padding: 0.5rem 0.6rem;
-  border-radius: 6px;
-  border: 1px solid #2c313c;
-  background: #0f1115;
-  color: #e6e6e6;
-  font-family: inherit;
-  font-size: var(--fs-xs);
-  resize: vertical;
-}
-
-.agent-create-label {
-  font-size: var(--fs-2xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: #8a8f98;
-  margin-top: 0.25rem;
-}
-
-.agent-create-label:first-of-type {
-  margin-top: 0;
-}
-
 .agent-create-optional {
   text-transform: none;
   font-weight: 400;
   letter-spacing: normal;
   color: #5c6270;
-}
-
-.agent-create-actions button[type="submit"]:disabled {
-  opacity: 0.6;
-}
-
-.agent-create-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.agent-create-actions button[type="submit"] {
-  padding: 0.4rem 0.9rem;
-  border: none;
-  border-radius: 6px;
-  background: #4f7cff;
-  color: white;
-  font-size: var(--fs-xs);
-  font-weight: 600;
 }
 
 .agents-list {
@@ -614,49 +558,6 @@ button {
   line-height: 1.4;
 }
 
-.specialist-create-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  background: #171a21;
-  border: 1px solid #262b36;
-}
-
-.specialist-create-form input,
-.specialist-create-form textarea {
-  padding: 0.5rem 0.6rem;
-  border-radius: 6px;
-  border: 1px solid #2c313c;
-  background: #0f1115;
-  color: #e6e6e6;
-  font-family: inherit;
-  font-size: var(--fs-xs);
-  resize: vertical;
-}
-
-.specialist-create-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.specialist-create-actions button[type="submit"] {
-  padding: 0.4rem 0.9rem;
-  border: none;
-  border-radius: 6px;
-  background: #4f7cff;
-  color: white;
-  font-size: var(--fs-xs);
-  font-weight: 600;
-}
-
-.specialist-create-actions button[type="submit"]:disabled {
-  opacity: 0.6;
-}
-
 .specialists-list {
   list-style: none;
   padding: 0;
@@ -682,6 +583,11 @@ button {
   flex-direction: column;
   gap: 0.1rem;
   min-width: 0;
+}
+
+.specialist-actions {
+  display: flex;
+  gap: 0.15rem;
 }
 
 .specialist-name {

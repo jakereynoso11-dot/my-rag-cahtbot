@@ -10,7 +10,12 @@ from app.api.deps import (
 from app.clients.postgrest_client import PostgrestClient
 from app.clients.powabase_client import PowabaseClient
 from app.core.config import settings
-from app.models.schemas import SpecialistCreate, SpecialistDocumentResponse, SpecialistResponse
+from app.models.schemas import (
+    SpecialistCreate,
+    SpecialistDocumentResponse,
+    SpecialistResponse,
+    SpecialistUpdate,
+)
 from app.services.chatbot_management import ChatbotNotFoundError, get_owned_chatbot
 from app.services.document_ingestion import (
     SpecialistNotFoundError as SpecialistDocumentNotFoundError,
@@ -22,6 +27,7 @@ from app.services.specialist_management import (
     create_specialist,
     delete_specialist,
     list_specialists,
+    update_specialist,
 )
 
 router = APIRouter(prefix="/chatbots/{chatbot_id}/specialists", tags=["specialists"])
@@ -71,6 +77,36 @@ async def create_chatbot_specialist(
         "id,name,specialty,created_at",
         access_token=access_token,
     )
+
+
+@router.patch("/{specialist_id}", response_model=SpecialistResponse)
+async def update_chatbot_specialist(
+    chatbot_id: str,
+    specialist_id: str,
+    req: SpecialistUpdate,
+    access_token: str = Depends(get_bearer_token),
+    user: dict = Depends(get_current_user),
+    postgrest: PostgrestClient = Depends(get_postgrest_client),
+    powabase: PowabaseClient = Depends(get_powabase_client),
+):
+    try:
+        await get_owned_chatbot(chatbot_id, access_token, postgrest)
+    except ChatbotNotFoundError:
+        raise HTTPException(status_code=404, detail="Chatbot not found")
+
+    try:
+        return await update_specialist(
+            specialist_id,
+            chatbot_id,
+            name=req.name,
+            specialty=req.specialty,
+            system_prompt=req.system_prompt,
+            access_token=access_token,
+            postgrest=postgrest,
+            powabase=powabase,
+        )
+    except SpecialistNotFoundError:
+        raise HTTPException(status_code=404, detail="Specialist not found")
 
 
 @router.delete("/{specialist_id}", status_code=204)

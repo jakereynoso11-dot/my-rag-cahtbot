@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
+import CreateChatbotModal from "./CreateChatbotModal";
 import CreationProgressModal from "./CreationProgressModal";
 import EditChatbotModal from "./EditChatbotModal";
 
@@ -8,11 +9,7 @@ export default function AgentsPanel({ selectedId, onSelect }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newPurpose, setNewPurpose] = useState("");
-  const [newPrompt, setNewPrompt] = useState("");
   const [creationProgressError, setCreationProgressError] = useState("");
   const [editingAgent, setEditingAgent] = useState(null);
 
@@ -39,32 +36,12 @@ export default function AgentsPanel({ selectedId, onSelect }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function resetCreateForm() {
-    setNewName("");
-    setNewPurpose("");
-    setNewPrompt("");
-    setCreateError("");
+  async function handleCreate({ name, purpose, instructions }) {
     setCreating(false);
-  }
-
-  async function handleCreate(e) {
-    e.preventDefault();
-    const name = newName.trim();
-    const purpose = newPurpose.trim();
-    if (!name) {
-      setCreateError("Give your chatbot a name.");
-      return;
-    }
-    if (!purpose) {
-      setCreateError("Describe what this chatbot is for — it helps it stay on topic.");
-      return;
-    }
-    setCreateError("");
     setSubmitting(true);
     setCreationProgressError("");
     try {
-      const agent = await api.createChatbot(name, purpose, newPrompt.trim());
-      resetCreateForm();
+      const agent = await api.createChatbot(name, purpose, instructions);
       await loadAgents(agent.id);
     } catch (err) {
       setCreationProgressError(err.message);
@@ -87,64 +64,13 @@ export default function AgentsPanel({ selectedId, onSelect }) {
     <aside className="agents-panel" data-tour="agents-panel">
       <div className="agents-panel-header">
         <h2>Your Chatbots</h2>
-        <button
-          className="icon-button"
-          onClick={() => (creating ? resetCreateForm() : setCreating(true))}
-          title="Create a new chatbot"
-        >
+        <button className="icon-button" onClick={() => setCreating(true)} title="Create a new chatbot">
           + New
         </button>
       </div>
 
       {creating && (
-        <form className="agent-create-form" onSubmit={handleCreate}>
-          <label className="agent-create-label" htmlFor="agent-create-name">
-            Name
-          </label>
-          <input
-            id="agent-create-name"
-            type="text"
-            placeholder='e.g. "Tax Docs Helper"'
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            autoFocus
-            required
-          />
-
-          <label className="agent-create-label" htmlFor="agent-create-purpose">
-            Purpose
-          </label>
-          <textarea
-            id="agent-create-purpose"
-            placeholder="What is this chatbot for? e.g. &quot;Answer questions about my uploaded tax documents so I don't have to dig through them myself.&quot;"
-            value={newPurpose}
-            onChange={(e) => setNewPurpose(e.target.value)}
-            rows={2}
-            required
-          />
-
-          <label className="agent-create-label" htmlFor="agent-create-instructions">
-            Instructions <span className="agent-create-optional">(optional)</span>
-          </label>
-          <textarea
-            id="agent-create-instructions"
-            placeholder='How should it behave? e.g. "Only answer from the uploaded documents. Keep answers short. If unsure, say so rather than guessing."'
-            value={newPrompt}
-            onChange={(e) => setNewPrompt(e.target.value)}
-            rows={3}
-          />
-
-          {createError && <p className="error-text">{createError}</p>}
-
-          <div className="agent-create-actions">
-            <button type="submit" disabled={submitting}>
-              {submitting ? "Creating..." : "Create chatbot"}
-            </button>
-            <button type="button" className="link-button" onClick={resetCreateForm}>
-              Cancel
-            </button>
-          </div>
-        </form>
+        <CreateChatbotModal onClose={() => setCreating(false)} onSubmit={handleCreate} />
       )}
 
       {(submitting || creationProgressError) && (

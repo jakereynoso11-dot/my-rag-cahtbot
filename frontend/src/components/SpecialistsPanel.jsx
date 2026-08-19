@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as api from "../api";
+import CreateSpecialistModal from "./CreateSpecialistModal";
 import CreationProgressModal from "./CreationProgressModal";
+import EditSpecialistModal from "./EditSpecialistModal";
 
 function SpecialistDocuments({ chatbotId, specialistId }) {
   const [documents, setDocuments] = useState([]);
@@ -72,13 +74,10 @@ export default function SpecialistsPanel({ chatbotId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newSpecialty, setNewSpecialty] = useState("");
-  const [newPrompt, setNewPrompt] = useState("");
   const [creationProgressError, setCreationProgressError] = useState("");
   const [expandedId, setExpandedId] = useState(null);
+  const [editingSpecialist, setEditingSpecialist] = useState(null);
 
   async function loadSpecialists() {
     setLoading(true);
@@ -100,28 +99,12 @@ export default function SpecialistsPanel({ chatbotId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatbotId]);
 
-  function resetCreateForm() {
-    setNewName("");
-    setNewSpecialty("");
-    setNewPrompt("");
-    setCreateError("");
+  async function handleCreate({ name, specialty, instructions }) {
     setCreating(false);
-  }
-
-  async function handleCreate(e) {
-    e.preventDefault();
-    const name = newName.trim();
-    const specialty = newSpecialty.trim();
-    if (!name || !specialty) {
-      setCreateError("Give the specialist a name and what it specializes in.");
-      return;
-    }
-    setCreateError("");
     setSubmitting(true);
     setCreationProgressError("");
     try {
-      await api.createSpecialist(chatbotId, name, specialty, newPrompt.trim());
-      resetCreateForm();
+      await api.createSpecialist(chatbotId, name, specialty, instructions);
       await loadSpecialists();
     } catch (err) {
       setCreationProgressError(err.message);
@@ -144,11 +127,7 @@ export default function SpecialistsPanel({ chatbotId }) {
     <aside className="specialists-panel">
       <div className="specialists-panel-header">
         <h2>Specialists</h2>
-        <button
-          className="icon-button"
-          onClick={() => (creating ? resetCreateForm() : setCreating(true))}
-          title="Add a specialist"
-        >
+        <button className="icon-button" onClick={() => setCreating(true)} title="Add a specialist">
           + New
         </button>
       </div>
@@ -161,38 +140,7 @@ export default function SpecialistsPanel({ chatbotId }) {
       </p>
 
       {creating && (
-        <form className="specialist-create-form" onSubmit={handleCreate}>
-          <input
-            type="text"
-            placeholder='Name, e.g. "Billing Agent"'
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            autoFocus
-            required
-          />
-          <input
-            type="text"
-            placeholder='Specializes in, e.g. "billing and invoice questions"'
-            value={newSpecialty}
-            onChange={(e) => setNewSpecialty(e.target.value)}
-            required
-          />
-          <textarea
-            placeholder='Extra instructions (optional), e.g. "Keep answers short and always mention the relevant policy number."'
-            value={newPrompt}
-            onChange={(e) => setNewPrompt(e.target.value)}
-            rows={2}
-          />
-          {createError && <p className="error-text">{createError}</p>}
-          <div className="specialist-create-actions">
-            <button type="submit" disabled={submitting}>
-              {submitting ? "Adding..." : "Add specialist"}
-            </button>
-            <button type="button" className="link-button" onClick={resetCreateForm}>
-              Cancel
-            </button>
-          </div>
-        </form>
+        <CreateSpecialistModal onClose={() => setCreating(false)} onSubmit={handleCreate} />
       )}
 
       {(submitting || creationProgressError) && (
@@ -200,6 +148,18 @@ export default function SpecialistsPanel({ chatbotId }) {
           label="Adding specialist..."
           error={creationProgressError}
           onDismissError={() => setCreationProgressError("")}
+        />
+      )}
+
+      {editingSpecialist && (
+        <EditSpecialistModal
+          chatbotId={chatbotId}
+          specialist={editingSpecialist}
+          onClose={() => setEditingSpecialist(null)}
+          onSaved={() => {
+            setEditingSpecialist(null);
+            loadSpecialists();
+          }}
         />
       )}
 
@@ -221,16 +181,28 @@ export default function SpecialistsPanel({ chatbotId }) {
                   <span className="specialist-name">{s.name}</span>
                   <span className="specialist-specialty">{s.specialty}</span>
                 </span>
-                <button
-                  className="icon-button"
-                  title="Delete"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(s.id, s.name);
-                  }}
-                >
-                  ×
-                </button>
+                <span className="specialist-actions">
+                  <button
+                    className="icon-button"
+                    title="Edit"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingSpecialist(s);
+                    }}
+                  >
+                    ✎
+                  </button>
+                  <button
+                    className="icon-button"
+                    title="Delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(s.id, s.name);
+                    }}
+                  >
+                    ×
+                  </button>
+                </span>
               </div>
               {expandedId === s.id && (
                 <SpecialistDocuments chatbotId={chatbotId} specialistId={s.id} />
