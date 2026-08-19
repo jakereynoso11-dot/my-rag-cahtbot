@@ -280,12 +280,12 @@ button {
 }
 
 .modal-card {
-  width: 440px;
+  width: 640px;
   max-width: 90vw;
   background: #171a21;
   border: 1px solid #262b36;
   border-radius: 14px;
-  padding: 1.5rem;
+  padding: 2rem;
 }
 
 .modal-card h2 {
@@ -314,13 +314,13 @@ button {
 
 .modal-form input,
 .modal-form textarea {
-  padding: 0.5rem 0.6rem;
+  padding: 0.65rem 0.8rem;
   border-radius: 6px;
   border: 1px solid #2c313c;
   background: #0f1115;
   color: #e6e6e6;
   font-family: inherit;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-base);
   resize: vertical;
 }
 

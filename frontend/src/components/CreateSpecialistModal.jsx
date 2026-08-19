@@ -52,7 +52,7 @@ export default function CreateSpecialistModal({ onClose, onSubmit }) {
             placeholder='e.g. "Keep answers short and always mention the relevant policy number."'
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            rows={2}
+            rows={4}
           />
 
           {error && <p className="error-text">{error}</p>}

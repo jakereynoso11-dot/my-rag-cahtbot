@@ -44,7 +44,7 @@ export default function CreateChatbotModal({ onClose, onSubmit }) {
             placeholder="What is this chatbot for? e.g. &quot;Answer questions about my uploaded tax documents so I don't have to dig through them myself.&quot;"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            rows={2}
+            rows={3}
             required
           />
 
@@ -56,7 +56,7 @@ export default function CreateChatbotModal({ onClose, onSubmit }) {
             placeholder='How should it behave? e.g. "Only answer from the uploaded documents. Keep answers short. If unsure, say so rather than guessing."'
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            rows={3}
+            rows={5}
           />
 
           {error && <p className="error-text">{error}</p>}

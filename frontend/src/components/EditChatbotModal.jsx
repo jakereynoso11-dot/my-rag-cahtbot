@@ -51,7 +51,7 @@ export default function EditChatbotModal({ chatbot, onClose, onSaved }) {
             id="edit-chatbot-purpose"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            rows={2}
+            rows={3}
           />
 
           <label htmlFor="edit-chatbot-instructions">
@@ -61,7 +61,7 @@ export default function EditChatbotModal({ chatbot, onClose, onSaved }) {
             id="edit-chatbot-instructions"
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            rows={3}
+            rows={5}
             placeholder="How should it behave?"
           />
 

@@ -63,7 +63,7 @@ export default function EditSpecialistModal({ chatbotId, specialist, onClose, on
             id="edit-specialist-instructions"
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
-            rows={2}
+            rows={4}
             placeholder="How should it behave?"
           />
 
