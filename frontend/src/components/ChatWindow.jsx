@@ -294,7 +294,7 @@ export default function ChatWindow({ chatbotId }) {
           <div ref={bottomRef} />
         </div>
         {error && <p className="error-text">{error}</p>}
-        <form className="chat-input-row" onSubmit={handleSend}>
+        <form className="chat-input-row" data-tour="chat-input-row" onSubmit={handleSend}>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}

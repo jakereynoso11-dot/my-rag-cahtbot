@@ -124,7 +124,7 @@ export default function SpecialistsPanel({ chatbotId }) {
   }
 
   return (
-    <aside className="specialists-panel">
+    <aside className="specialists-panel" data-tour="specialists-panel">
       <div className="specialists-panel-header">
         <h2>Specialists</h2>
         <button className="icon-button" onClick={() => setCreating(true)} title="Add a specialist">

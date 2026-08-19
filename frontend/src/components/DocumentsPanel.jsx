@@ -48,7 +48,7 @@ export default function DocumentsPanel({ chatbotId }) {
   }
 
   return (
-    <aside className="documents-panel">
+    <aside className="documents-panel" data-tour="documents-panel">
       <h2>Documents</h2>
       <label className="upload-dropzone">
         {uploading ? "Uploading..." : "Drop files or click to upload"}
