@@ -13,12 +13,13 @@ _DEFAULT_CHATBOT_ROW = object()
 
 
 class FakePostgrestClient:
-    def __init__(self, chatbot_row=_DEFAULT_CHATBOT_ROW):
+    def __init__(self, chatbot_row=_DEFAULT_CHATBOT_ROW, specialist_row=None):
         self.chatbot_row = (
             {"id": "chatbot-1", "powabase_agent_id": "agent-1"}
             if chatbot_row is _DEFAULT_CHATBOT_ROW
             else chatbot_row
         )
+        self.specialist_row = specialist_row
         self.rpc_results = {
             "register_or_get_document": [
                 {
@@ -33,6 +34,8 @@ class FakePostgrestClient:
         }
 
     async def select_one(self, table, filters, columns, *, access_token):
+        if table == "chatbot_specialists":
+            return self.specialist_row
         return self.chatbot_row
 
     async def rpc(self, function_name, payload, *, access_token):
@@ -119,6 +122,40 @@ def test_ingest_file_returns_404_when_chatbot_not_owned():
     response = client.post(
         "/ingest/file",
         data={"chatbot_id": "not-mine"},
+        files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 404
+
+
+def test_ingest_file_scoped_to_owned_specialist():
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: FakePostgrestClient(
+        specialist_row={"id": "spec-1", "name": "Billing Agent", "powabase_agent_id": "spec-agent-1"}
+    )
+    app.dependency_overrides[get_powabase_client] = lambda: FakePowabaseClient()
+
+    response = client.post(
+        "/ingest/file",
+        data={"chatbot_id": "chatbot-1", "specialist_id": "spec-1"},
+        files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 200
+
+
+def test_ingest_file_returns_404_for_unowned_specialist():
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: FakePostgrestClient(
+        specialist_row=None
+    )
+    app.dependency_overrides[get_powabase_client] = lambda: FakePowabaseClient()
+
+    response = client.post(
+        "/ingest/file",
+        data={"chatbot_id": "chatbot-1", "specialist_id": "spec-missing"},
         files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
         headers={"Authorization": "Bearer test-token"},
     )

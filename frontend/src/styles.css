@@ -409,6 +409,17 @@ button {
   margin: 0 0 0.75rem;
 }
 
+.doc-target-select {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  margin-bottom: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #2c313c;
+  background: #0f1115;
+  color: #e6e6e6;
+  font-size: 0.8rem;
+}
+
 .upload-dropzone {
   display: block;
   text-align: center;
@@ -456,6 +467,18 @@ button {
 
 .doc-status-failed {
   color: #ff6b6b;
+}
+
+.doc-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.doc-scope {
+  font-size: 0.7rem;
+  color: #8a9cff;
 }
 
 /* Specialists panel */

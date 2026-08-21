@@ -21,7 +21,8 @@ async def list_documents(
 
     return await postgrest.select(
         "chatbot_documents",
-        "id,display_name,created_at,documents(index_status,original_filename)",
+        "id,display_name,created_at,specialist_id,"
+        "chatbot_specialists(name),documents(index_status,original_filename)",
         filters={"chatbot_id": chatbot.id},
         order="created_at.desc",
         access_token=access_token,

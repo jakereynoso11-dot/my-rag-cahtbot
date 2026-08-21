@@ -1,3 +1,5 @@
+from typing import Optional
+
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
@@ -14,6 +16,7 @@ from app.models.schemas import DocumentResponse
 from app.services.chatbot_management import ChatbotNotFoundError, get_owned_chatbot
 from app.services.document_ingestion import ingest_document_for_chatbot
 from app.services.ingest_service import ExtractionNotUsableError, PollTimeoutError
+from app.services.specialist_management import SpecialistNotFoundError
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
@@ -22,6 +25,7 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 async def ingest_file(
     chatbot_id: str = Form(...),
     file: UploadFile = File(...),
+    specialist_id: Optional[str] = Form(None),
     access_token: str = Depends(get_bearer_token),
     user: dict = Depends(get_current_user),
     postgrest: PostgrestClient = Depends(get_postgrest_client),
@@ -48,7 +52,10 @@ async def ingest_file(
             service_role_key=settings.powabase_api_key,
             postgrest=postgrest,
             powabase=powabase,
+            specialist_id=specialist_id or None,
         )
+    except SpecialistNotFoundError:
+        raise HTTPException(status_code=404, detail="Specialist not found")
     except ExtractionNotUsableError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except PollTimeoutError as e:

@@ -2,6 +2,7 @@ import pytest
 
 from app.services.document_ingestion import ingest_document_for_chatbot
 from app.services.ingest_service import ExtractionNotUsableError
+from app.services.specialist_management import SpecialistNotFoundError
 
 USER_JWT = "user-jwt-token"
 SERVICE_ROLE_KEY = "service-role-key"
@@ -14,6 +15,7 @@ class FakePostgrestClient:
         self.register_or_get_document_result = None
         self.attach_document_to_chatbot_result = None
         self.specialist_rows = []
+        self.owned_specialist_row = None
 
     async def rpc(self, function_name, payload, *, access_token):
         self.rpc_calls.append((function_name, payload, access_token))
@@ -31,6 +33,11 @@ class FakePostgrestClient:
         if table == "chatbot_specialists":
             return self.specialist_rows
         raise AssertionError(f"unexpected select on {table}")
+
+    async def select_one(self, table, filters, columns, *, access_token):
+        if table == "chatbot_specialists":
+            return self.owned_specialist_row
+        raise AssertionError(f"unexpected select_one on {table}")
 
 
 class FakePowabaseClient:
@@ -200,6 +207,77 @@ async def test_ingest_shares_document_with_existing_specialists():
         ("specialist-agent-1", "kb-existing"),
         ("specialist-agent-2", "kb-existing"),
     ]
+
+
+async def test_ingest_scoped_to_specialist_links_only_that_agent():
+    postgrest = FakePostgrestClient()
+    postgrest.register_or_get_document_result = [
+        {
+            "id": "doc-1",
+            "is_new": False,
+            "index_status": "indexed",
+            "powabase_source_id": "src-existing",
+            "powabase_knowledge_base_id": "kb-existing",
+        }
+    ]
+    postgrest.attach_document_to_chatbot_result = {"id": "cd-2"}
+    postgrest.owned_specialist_row = {
+        "id": "spec-1",
+        "name": "Billing Agent",
+        "powabase_agent_id": "specialist-agent-1",
+    }
+    postgrest.specialist_rows = [
+        {"powabase_agent_id": "specialist-agent-1"},
+        {"powabase_agent_id": "specialist-agent-2"},
+    ]
+    powabase = FakePowabaseClient()
+
+    result = await ingest_document_for_chatbot(
+        content=b"fake bytes",
+        filename="doc.pdf",
+        mime_type="application/pdf",
+        chatbot_id="cb-2",
+        agent_id="agent-2",
+        access_token=USER_JWT,
+        service_role_key=SERVICE_ROLE_KEY,
+        postgrest=postgrest,
+        powabase=powabase,
+        specialist_id="spec-1",
+    )
+
+    assert result.chatbot_document_id == "cd-2"
+    # Only the targeted specialist's agent gets the knowledge base -- not the
+    # parent chatbot's agent, and not the other specialist.
+    assert powabase.link_agent_calls == [("specialist-agent-1", "kb-existing")]
+
+    update_table, update_filters, update_values, update_token = postgrest.update_calls[0]
+    assert update_table == "chatbot_documents"
+    assert update_filters == {"id": "cd-2"}
+    assert update_values == {"specialist_id": "spec-1"}
+    assert update_token == USER_JWT
+
+
+async def test_ingest_scoped_to_unowned_specialist_raises_before_side_effects():
+    postgrest = FakePostgrestClient()
+    postgrest.owned_specialist_row = None
+    powabase = FakePowabaseClient()
+
+    with pytest.raises(SpecialistNotFoundError):
+        await ingest_document_for_chatbot(
+            content=b"fake bytes",
+            filename="doc.pdf",
+            mime_type="application/pdf",
+            chatbot_id="cb-2",
+            agent_id="agent-2",
+            access_token=USER_JWT,
+            service_role_key=SERVICE_ROLE_KEY,
+            postgrest=postgrest,
+            powabase=powabase,
+            specialist_id="spec-missing",
+        )
+
+    assert postgrest.rpc_calls == []
+    assert powabase.create_kb_calls == []
 
 
 async def test_ingest_raises_and_records_extraction_not_usable():

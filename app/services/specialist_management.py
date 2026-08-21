@@ -13,6 +13,7 @@ __all__ = [
     "create_specialist",
     "delete_specialist",
     "build_specialist_system_prompt",
+    "get_owned_specialist",
 ]
 
 
@@ -53,6 +54,20 @@ async def list_specialists(
         order="created_at.asc",
         access_token=access_token,
     )
+
+
+async def get_owned_specialist(
+    chatbot_id: str, specialist_id: str, access_token: str, postgrest: PostgrestClient
+) -> dict:
+    row = await postgrest.select_one(
+        "chatbot_specialists",
+        {"id": specialist_id, "chatbot_id": chatbot_id},
+        "id,name,powabase_agent_id",
+        access_token=access_token,
+    )
+    if not row:
+        raise SpecialistNotFoundError(specialist_id)
+    return row
 
 
 async def _existing_knowledge_base_ids(

@@ -5,6 +5,7 @@ from typing import Optional
 from app.clients.postgrest_client import PostgrestClient
 from app.clients.powabase_client import PowabaseClient
 from app.services.ingest_service import ExtractionNotUsableError, IngestService
+from app.services.specialist_management import get_owned_specialist
 
 __all__ = ["DocumentIngestResult", "compute_sha256", "ingest_document_for_chatbot"]
 
@@ -44,7 +45,15 @@ async def ingest_document_for_chatbot(
     service_role_key: str,
     postgrest: PostgrestClient,
     powabase: PowabaseClient,
+    specialist_id: Optional[str] = None,
 ) -> DocumentIngestResult:
+    specialist_agent_id = None
+    if specialist_id:
+        specialist = await get_owned_specialist(
+            chatbot_id, specialist_id, access_token, postgrest
+        )
+        specialist_agent_id = specialist["powabase_agent_id"]
+
     content_sha256 = compute_sha256(content)
 
     rows = await postgrest.rpc(
@@ -106,12 +115,20 @@ async def ingest_document_for_chatbot(
         access_token=access_token,
     )
 
-    await powabase.add_knowledge_base_to_agent(agent_id, kb_id)
-
-    for specialist_agent_id in await _specialist_agent_ids(
-        chatbot_id, access_token, postgrest
-    ):
+    if specialist_id:
+        await postgrest.update(
+            "chatbot_documents",
+            {"id": chatbot_document["id"]},
+            {"specialist_id": specialist_id},
+            access_token=access_token,
+        )
         await powabase.add_knowledge_base_to_agent(specialist_agent_id, kb_id)
+    else:
+        await powabase.add_knowledge_base_to_agent(agent_id, kb_id)
+        for other_specialist_agent_id in await _specialist_agent_ids(
+            chatbot_id, access_token, postgrest
+        ):
+            await powabase.add_knowledge_base_to_agent(other_specialist_agent_id, kb_id)
 
     return DocumentIngestResult(
         document_id=document_id,

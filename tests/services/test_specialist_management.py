@@ -5,6 +5,7 @@ from app.services.specialist_management import (
     SpecialistNotFoundError,
     create_specialist,
     delete_specialist,
+    get_owned_specialist,
     list_specialists,
 )
 
@@ -153,6 +154,27 @@ async def test_delete_specialist_raises_when_missing_or_not_owned():
         await delete_specialist("spec-missing", "cb-1", TOKEN, postgrest, powabase)
 
     assert postgrest.delete_calls == []
+
+
+async def test_get_owned_specialist_returns_row():
+    postgrest = FakePostgrestClient(
+        specialist_row={
+            "id": "spec-1",
+            "name": "Billing Agent",
+            "powabase_agent_id": "specialist-agent-1",
+        }
+    )
+
+    result = await get_owned_specialist("cb-1", "spec-1", TOKEN, postgrest)
+
+    assert result["powabase_agent_id"] == "specialist-agent-1"
+
+
+async def test_get_owned_specialist_raises_when_missing_or_not_owned():
+    postgrest = FakePostgrestClient(specialist_row=None)
+
+    with pytest.raises(SpecialistNotFoundError):
+        await get_owned_specialist("cb-1", "spec-missing", TOKEN, postgrest)
 
 
 async def test_delete_specialist_succeeds_even_if_agent_deletion_fails():

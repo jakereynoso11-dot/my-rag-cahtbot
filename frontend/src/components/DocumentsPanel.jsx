@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../api";
+import * as api from "../api";
 
 export default function DocumentsPanel({ chatbotId }) {
   const [documents, setDocuments] = useState([]);
+  const [specialists, setSpecialists] = useState([]);
+  const [targetSpecialistId, setTargetSpecialistId] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef(null);
@@ -17,10 +20,23 @@ export default function DocumentsPanel({ chatbotId }) {
     }
   }
 
+  async function loadSpecialists() {
+    try {
+      setSpecialists(await api.listSpecialists(chatbotId));
+    } catch {
+      setSpecialists([]);
+    }
+  }
+
   useEffect(() => {
     setDocuments([]);
+    setSpecialists([]);
+    setTargetSpecialistId("");
     setError("");
-    if (chatbotId) loadDocuments();
+    if (chatbotId) {
+      loadDocuments();
+      loadSpecialists();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatbotId]);
 
@@ -33,6 +49,7 @@ export default function DocumentsPanel({ chatbotId }) {
       const formData = new FormData();
       formData.append("chatbot_id", chatbotId);
       formData.append("file", file);
+      if (targetSpecialistId) formData.append("specialist_id", targetSpecialistId);
       const resp = await apiFetch("/ingest/file", { method: "POST", body: formData });
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));
@@ -50,6 +67,21 @@ export default function DocumentsPanel({ chatbotId }) {
   return (
     <aside className="documents-panel">
       <h2>Documents</h2>
+      {specialists.length > 0 && (
+        <select
+          className="doc-target-select"
+          value={targetSpecialistId}
+          onChange={(e) => setTargetSpecialistId(e.target.value)}
+          disabled={uploading}
+        >
+          <option value="">Shared with all specialists</option>
+          {specialists.map((s) => (
+            <option key={s.id} value={s.id}>
+              Only {s.name}
+            </option>
+          ))}
+        </select>
+      )}
       <label className="upload-dropzone">
         {uploading ? "Uploading..." : "Drop files or click to upload"}
         <input
@@ -71,8 +103,13 @@ export default function DocumentsPanel({ chatbotId }) {
               <span className="doc-name">
                 {doc.display_name || doc.documents?.original_filename}
               </span>
-              <span className={`doc-status doc-status-${doc.documents?.index_status}`}>
-                {doc.documents?.index_status}
+              <span className="doc-meta">
+                <span className={`doc-status doc-status-${doc.documents?.index_status}`}>
+                  {doc.documents?.index_status}
+                </span>
+                <span className="doc-scope">
+                  {doc.specialist_id ? `Only ${doc.chatbot_specialists?.name}` : "Shared"}
+                </span>
               </span>
             </li>
           ))}
