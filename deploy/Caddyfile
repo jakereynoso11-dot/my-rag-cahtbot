@@ -1,0 +1,29 @@
+:80 {
+    handle /chat* {
+        reverse_proxy localhost:8000
+    }
+    handle /ingest* {
+        reverse_proxy localhost:8000
+    }
+    handle /documents* {
+        reverse_proxy localhost:8000
+    }
+    handle /health* {
+        reverse_proxy localhost:8000
+    }
+    handle /docs* {
+        reverse_proxy localhost:8000
+    }
+    handle /openapi.json {
+        reverse_proxy localhost:8000
+    }
+    handle /public* {
+        reverse_proxy localhost:8000
+    }
+
+    handle {
+        root * /home/ubuntu/frontend-dist
+        try_files {path} /index.html
+        file_server
+    }
+}

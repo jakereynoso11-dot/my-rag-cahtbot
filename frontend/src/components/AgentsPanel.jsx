@@ -15,7 +15,7 @@ export default function AgentsPanel({ selectedId, onSelect, onAgentsLoaded }) {
   const [copiedId, setCopiedId] = useState(null);
 
   async function handleCopyShareLink(shareToken, id) {
-    const url = `${window.location.origin}/chat/${shareToken}`;
+    const url = `${window.location.origin}/share/${shareToken}`;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
