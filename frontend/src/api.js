@@ -250,3 +250,32 @@ export async function deleteChatSession(id) {
     throw new Error(data.detail || "Could not delete conversation");
   }
 }
+
+// Public chat link -- a visitor talking to a shared chatbot has no Powabase
+// login, so these call the backend directly instead of through apiFetch
+// (which would attach an Authorization header from whatever account, if
+// any, happens to be logged into this browser).
+export async function getPublicChatbot(shareToken) {
+  const resp = await fetch(`${API_BASE_URL}/public/chatbots/${shareToken}`);
+  if (!resp.ok) throw new Error("This chat link is invalid or has been disabled.");
+  return resp.json();
+}
+
+export async function sendPublicChatMessage(shareToken, message, sessionId) {
+  const resp = await fetch(`${API_BASE_URL}/public/chatbots/${shareToken}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, session_id: sessionId || null }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.detail || "Chat request failed");
+  return data;
+}
+
+export async function listPublicChatMessages(shareToken, sessionId) {
+  const resp = await fetch(
+    `${API_BASE_URL}/public/chatbots/${shareToken}/chat/sessions/${sessionId}/messages`
+  );
+  if (!resp.ok) throw new Error("Could not load conversation");
+  return resp.json();
+}

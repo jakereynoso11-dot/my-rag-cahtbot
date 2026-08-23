@@ -27,6 +27,17 @@ class ChatbotResponse(BaseModel):
     name: str
     purpose: Optional[str] = None
     created_at: str
+    share_token: str
+
+
+class PublicChatbotResponse(BaseModel):
+    name: str
+    purpose: Optional[str] = None
+
+
+class PublicChatRequest(BaseModel):
+    message: str = Field(..., min_length=1)
+    session_id: Optional[str] = None
 
 
 class ChatRequest(BaseModel):

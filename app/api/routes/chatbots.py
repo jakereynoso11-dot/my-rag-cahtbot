@@ -49,7 +49,7 @@ async def create_my_chatbot(
     return await postgrest.select_one(
         "chatbots",
         {"id": chatbot.id},
-        "id,name,purpose,created_at",
+        "id,name,purpose,created_at,share_token",
         access_token=access_token,
     )
 

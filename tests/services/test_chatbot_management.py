@@ -5,6 +5,7 @@ from app.services.chatbot_management import (
     ChatbotNotFoundError,
     create_chatbot,
     delete_chatbot,
+    get_chatbot_by_share_token,
     get_owned_chatbot,
     list_chatbots,
     update_chatbot,
@@ -147,6 +148,22 @@ async def test_get_owned_chatbot_raises_when_missing_or_not_owned():
 
     with pytest.raises(ChatbotNotFoundError):
         await get_owned_chatbot("cb-missing", TOKEN, postgrest)
+
+
+async def test_get_chatbot_by_share_token_returns_chatbot():
+    postgrest = FakePostgrestClient(chatbot_row={"id": "cb-1", "powabase_agent_id": "agent-1"})
+
+    result = await get_chatbot_by_share_token("tok-1", "service-role-key", postgrest)
+
+    assert result.id == "cb-1"
+    assert result.agent_id == "agent-1"
+
+
+async def test_get_chatbot_by_share_token_raises_when_missing():
+    postgrest = FakePostgrestClient(chatbot_row=None)
+
+    with pytest.raises(ChatbotNotFoundError):
+        await get_chatbot_by_share_token("tok-missing", "service-role-key", postgrest)
 
 
 async def test_update_chatbot_renames():

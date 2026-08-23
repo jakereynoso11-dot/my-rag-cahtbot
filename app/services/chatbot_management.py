@@ -11,6 +11,7 @@ __all__ = [
     "list_chatbots",
     "create_chatbot",
     "get_owned_chatbot",
+    "get_chatbot_by_share_token",
     "update_chatbot",
     "delete_chatbot",
 ]
@@ -27,7 +28,7 @@ async def list_chatbots(
 ) -> list:
     return await postgrest.select(
         "chatbots",
-        "id,name,purpose,created_at",
+        "id,name,purpose,created_at,share_token",
         filters={"owner_id": user_id},
         order="created_at.desc",
         access_token=access_token,
@@ -73,6 +74,24 @@ async def get_owned_chatbot(
     return Chatbot(id=row["id"], agent_id=row["powabase_agent_id"])
 
 
+async def get_chatbot_by_share_token(
+    share_token: str, access_token: str, postgrest: PostgrestClient
+) -> Chatbot:
+    """Looks up a chatbot by its public share link token instead of its id
+    and an owning user -- used by the unauthenticated public chat routes,
+    where the caller passes the Powabase service role key as access_token
+    since there's no visitor JWT to scope a request by."""
+    row = await postgrest.select_one(
+        "chatbots",
+        {"share_token": share_token},
+        "id,powabase_agent_id",
+        access_token=access_token,
+    )
+    if not row:
+        raise ChatbotNotFoundError(share_token)
+    return Chatbot(id=row["id"], agent_id=row["powabase_agent_id"])
+
+
 async def update_chatbot(
     chatbot_id: str,
     *,
@@ -105,7 +124,7 @@ async def update_chatbot(
     return await postgrest.select_one(
         "chatbots",
         {"id": chatbot_id},
-        "id,name,purpose,created_at",
+        "id,name,purpose,created_at,share_token",
         access_token=access_token,
     )
 

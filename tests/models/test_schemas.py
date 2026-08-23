@@ -59,11 +59,17 @@ def test_chatbot_update_rejects_empty_name():
 
 
 def test_chatbot_response_shape():
-    resp = ChatbotResponse(id="cb-1", name="Tax Docs Helper", created_at="2026-01-01T00:00:00Z")
+    resp = ChatbotResponse(
+        id="cb-1",
+        name="Tax Docs Helper",
+        created_at="2026-01-01T00:00:00Z",
+        share_token="share-1",
+    )
 
     assert resp.id == "cb-1"
     assert resp.name == "Tax Docs Helper"
     assert resp.created_at == "2026-01-01T00:00:00Z"
+    assert resp.share_token == "share-1"
 
 
 def test_chat_response_defaults_sources_to_empty_list():

@@ -12,6 +12,19 @@ export default function AgentsPanel({ selectedId, onSelect, onAgentsLoaded }) {
   const [submitting, setSubmitting] = useState(false);
   const [creationProgressError, setCreationProgressError] = useState("");
   const [editingAgent, setEditingAgent] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+
+  async function handleCopyShareLink(shareToken, id) {
+    const url = `${window.location.origin}/chat/${shareToken}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      window.prompt("Copy this link:", url);
+      return;
+    }
+    setCopiedId(id);
+    setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1500);
+  }
 
   async function loadAgents(selectAfterId) {
     setLoading(true);
@@ -108,6 +121,13 @@ export default function AgentsPanel({ selectedId, onSelect, onAgentsLoaded }) {
                 {a.purpose && <span className="agent-purpose">{a.purpose}</span>}
               </span>
               <span className="agent-actions">
+                <button
+                  className="icon-button"
+                  title="Copy public chat link"
+                  onClick={() => handleCopyShareLink(a.share_token, a.id)}
+                >
+                  {copiedId === a.id ? "✓" : "🔗"}
+                </button>
                 <button
                   className="icon-button"
                   title="Edit"

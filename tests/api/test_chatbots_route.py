@@ -29,6 +29,7 @@ class FakePostgrestClient:
         self.chatbot_row = {
             "id": "chatbot-new",
             "created_at": "2026-01-01T00:00:00Z",
+            "share_token": "share-new",
             **values,
         }
         return self.chatbot_row
@@ -79,6 +80,7 @@ def test_list_chatbots_returns_owned_rows():
                 "name": "Tax Docs Helper",
                 "purpose": "Answer questions about my tax filings",
                 "created_at": "2026-01-01T00:00:00Z",
+                "share_token": "share-1",
             }
         ]
     )
@@ -94,6 +96,7 @@ def test_list_chatbots_returns_owned_rows():
             "name": "Tax Docs Helper",
             "purpose": "Answer questions about my tax filings",
             "created_at": "2026-01-01T00:00:00Z",
+            "share_token": "share-1",
         }
     ]
 
@@ -137,6 +140,7 @@ def test_rename_chatbot_updates_name():
             "name": "old",
             "powabase_agent_id": "agent-1",
             "created_at": "2026-01-01T00:00:00Z",
+            "share_token": "share-1",
         }
     )
     powabase = FakePowabaseClient()
@@ -163,6 +167,7 @@ def test_update_chatbot_purpose_and_instructions():
             "purpose": "old purpose",
             "powabase_agent_id": "agent-1",
             "created_at": "2026-01-01T00:00:00Z",
+            "share_token": "share-1",
         }
     )
     powabase = FakePowabaseClient()
