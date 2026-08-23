@@ -1,3 +1,4 @@
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import get_postgrest_client, get_powabase_client
@@ -17,20 +18,38 @@ from app.services.specialist_routing import choose_specialist
 router = APIRouter(prefix="/public/chatbots", tags=["public-chat"])
 
 
+async def _find_session(
+    postgrest: PostgrestClient, session_id: str, service_role_key: str
+) -> dict | None:
+    """chat_sessions.id is a uuid column -- a non-uuid session_id (bad
+    input, a bot/scraper probing paths) makes Postgrest 400 instead of
+    returning no rows. These routes are unauthenticated, so treat that the
+    same as "no matching session" instead of letting it surface as a 500."""
+    try:
+        return await postgrest.select_one(
+            "chat_sessions",
+            {"id": session_id},
+            "id,chatbot_id,powabase_session_id,powabase_agent_id",
+            access_token=service_role_key,
+        )
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 400:
+            return None
+        raise
+
+
 @router.get("/{share_token}", response_model=PublicChatbotResponse)
 async def get_public_chatbot(
     share_token: str,
     postgrest: PostgrestClient = Depends(get_postgrest_client),
 ):
-    row = await postgrest.select_one(
-        "chatbots",
-        {"share_token": share_token},
-        "name,purpose",
-        access_token=settings.powabase_api_key,
-    )
-    if not row:
+    try:
+        chatbot = await get_chatbot_by_share_token(
+            share_token, settings.powabase_api_key, postgrest
+        )
+    except ChatbotNotFoundError:
         raise HTTPException(status_code=404, detail="Chat link not found")
-    return PublicChatbotResponse(name=row["name"], purpose=row.get("purpose"))
+    return PublicChatbotResponse(name=chatbot.name, purpose=chatbot.purpose)
 
 
 @router.post("/{share_token}/chat", response_model=ChatResponse)
@@ -53,12 +72,7 @@ async def public_chat(
 
     session = None
     if req.session_id:
-        candidate = await postgrest.select_one(
-            "chat_sessions",
-            {"id": req.session_id},
-            "id,chatbot_id,powabase_session_id,powabase_agent_id",
-            access_token=service_role_key,
-        )
+        candidate = await _find_session(postgrest, req.session_id, service_role_key)
         # Only reuse it if it actually belongs to this chatbot -- otherwise a
         # visitor passing an unrelated/stale session id just gets a fresh one
         # instead of erroring.
@@ -155,12 +169,7 @@ async def list_public_session_messages(
     except ChatbotNotFoundError:
         raise HTTPException(status_code=404, detail="Chat link not found")
 
-    session = await postgrest.select_one(
-        "chat_sessions",
-        {"id": session_id},
-        "id,chatbot_id",
-        access_token=service_role_key,
-    )
+    session = await _find_session(postgrest, session_id, service_role_key)
     if not session or session["chatbot_id"] != chatbot.id:
         raise HTTPException(status_code=404, detail="Conversation not found")
 

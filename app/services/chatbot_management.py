@@ -85,7 +85,7 @@ async def get_chatbot_by_share_token(
         row = await postgrest.select_one(
             "chatbots",
             {"share_token": share_token},
-            "id,powabase_agent_id",
+            "id,powabase_agent_id,name,purpose",
             access_token=access_token,
         )
     except httpx.HTTPStatusError as exc:
@@ -99,7 +99,12 @@ async def get_chatbot_by_share_token(
         raise
     if not row:
         raise ChatbotNotFoundError(share_token)
-    return Chatbot(id=row["id"], agent_id=row["powabase_agent_id"])
+    return Chatbot(
+        id=row["id"],
+        agent_id=row["powabase_agent_id"],
+        name=row.get("name"),
+        purpose=row.get("purpose"),
+    )
 
 
 async def update_chatbot(

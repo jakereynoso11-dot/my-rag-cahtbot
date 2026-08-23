@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from app.clients.postgrest_client import PostgrestClient
 from app.clients.powabase_client import PowabaseClient
@@ -14,6 +15,8 @@ SYSTEM_PROMPT = (
 class Chatbot:
     id: str
     agent_id: str
+    name: Optional[str] = None
+    purpose: Optional[str] = None
 
 
 async def recreate_agent_for_chatbot(

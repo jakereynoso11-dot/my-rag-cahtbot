@@ -1,3 +1,4 @@
+import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -18,10 +19,26 @@ CHATBOT_ROW = {
 }
 
 
+def _postgrest_400():
+    return httpx.HTTPStatusError(
+        "bad request",
+        request=httpx.Request("GET", "https://x/rest/v1/chatbots"),
+        response=httpx.Response(400, request=httpx.Request("GET", "https://x")),
+    )
+
+
 class FakePostgrestClient:
-    def __init__(self, chatbot_row=CHATBOT_ROW, existing_sessions=None):
+    def __init__(
+        self,
+        chatbot_row=CHATBOT_ROW,
+        existing_sessions=None,
+        raise_400_for_session_id=None,
+        raise_400_for_share_token=None,
+    ):
         self.chatbot_row = chatbot_row
         self.existing_sessions = existing_sessions or {}
+        self.raise_400_for_session_id = raise_400_for_session_id
+        self.raise_400_for_share_token = raise_400_for_share_token
         self.inserted_rows = []
         self.update_calls = []
         self.select_one_calls = []
@@ -29,10 +46,14 @@ class FakePostgrestClient:
     async def select_one(self, table, filters, columns, *, access_token):
         self.select_one_calls.append((table, filters, access_token))
         if table == "chatbots":
+            if filters.get("share_token") == self.raise_400_for_share_token:
+                raise _postgrest_400()
             if self.chatbot_row and filters.get("share_token") == SHARE_TOKEN:
                 return self.chatbot_row
             return None
         if table == "chat_sessions":
+            if filters.get("id") == self.raise_400_for_session_id:
+                raise _postgrest_400()
             return self.existing_sessions.get(filters.get("id"))
         raise AssertionError(f"unexpected select_one on {table}")
 
@@ -87,6 +108,42 @@ def test_get_public_chatbot_returns_404_for_unknown_token():
     app.dependency_overrides[get_postgrest_client] = lambda: FakePostgrestClient(chatbot_row=None)
 
     response = client.get("/public/chatbots/bad-token")
+
+    assert response.status_code == 404
+
+
+def test_get_public_chatbot_returns_404_not_500_for_malformed_token():
+    """share_token is a uuid column -- Postgrest 400s on a non-uuid value
+    instead of returning no rows. This unauthenticated route is reachable
+    by anyone (bad links, bots probing paths), so it must 404, not 500."""
+    app.dependency_overrides[get_postgrest_client] = lambda: FakePostgrestClient(
+        raise_400_for_share_token="not-a-uuid"
+    )
+
+    response = client.get("/public/chatbots/not-a-uuid")
+
+    assert response.status_code == 404
+
+
+def test_public_chat_treats_malformed_session_id_as_no_session():
+    postgrest = FakePostgrestClient(raise_400_for_session_id="not-a-uuid")
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: FakePowabaseClient()
+
+    response = client.post(
+        f"/public/chatbots/{SHARE_TOKEN}/chat",
+        json={"message": "hi", "session_id": "not-a-uuid"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == "sess-new"
+
+
+def test_list_public_session_messages_returns_404_not_500_for_malformed_session_id():
+    postgrest = FakePostgrestClient(raise_400_for_session_id="not-a-uuid")
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.get(f"/public/chatbots/{SHARE_TOKEN}/chat/sessions/not-a-uuid/messages")
 
     assert response.status_code == 404
 
