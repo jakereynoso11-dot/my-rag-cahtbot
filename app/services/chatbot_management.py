@@ -81,12 +81,22 @@ async def get_chatbot_by_share_token(
     and an owning user -- used by the unauthenticated public chat routes,
     where the caller passes the Powabase service role key as access_token
     since there's no visitor JWT to scope a request by."""
-    row = await postgrest.select_one(
-        "chatbots",
-        {"share_token": share_token},
-        "id,powabase_agent_id",
-        access_token=access_token,
-    )
+    try:
+        row = await postgrest.select_one(
+            "chatbots",
+            {"share_token": share_token},
+            "id,powabase_agent_id",
+            access_token=access_token,
+        )
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 400:
+            # share_token is a uuid column -- a non-uuid-shaped token in the
+            # URL (bad link, bot probing, typo) makes Postgrest 400 rather
+            # than returning an empty result. Since anyone can hit this
+            # unauthenticated route with any string, treat it the same as
+            # "not found" instead of letting it surface as a 500.
+            raise ChatbotNotFoundError(share_token) from exc
+        raise
     if not row:
         raise ChatbotNotFoundError(share_token)
     return Chatbot(id=row["id"], agent_id=row["powabase_agent_id"])

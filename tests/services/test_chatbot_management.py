@@ -166,6 +166,40 @@ async def test_get_chatbot_by_share_token_raises_when_missing():
         await get_chatbot_by_share_token("tok-missing", "service-role-key", postgrest)
 
 
+async def test_get_chatbot_by_share_token_treats_postgrest_400_as_not_found():
+    """share_token is a uuid column -- a non-uuid-shaped token (bad link,
+    bot probing) makes Postgrest 400 rather than return an empty result.
+    This must still surface as ChatbotNotFoundError, not a raw 500."""
+
+    class BadTokenPostgrestClient(FakePostgrestClient):
+        async def select_one(self, table, filters, columns, *, access_token):
+            raise httpx.HTTPStatusError(
+                "bad request",
+                request=httpx.Request("GET", "https://x/rest/v1/chatbots"),
+                response=httpx.Response(400, request=httpx.Request("GET", "https://x")),
+            )
+
+    with pytest.raises(ChatbotNotFoundError):
+        await get_chatbot_by_share_token(
+            "not-a-uuid", "service-role-key", BadTokenPostgrestClient()
+        )
+
+
+async def test_get_chatbot_by_share_token_reraises_other_postgrest_errors():
+    class FailingPostgrestClient(FakePostgrestClient):
+        async def select_one(self, table, filters, columns, *, access_token):
+            raise httpx.HTTPStatusError(
+                "server error",
+                request=httpx.Request("GET", "https://x/rest/v1/chatbots"),
+                response=httpx.Response(500, request=httpx.Request("GET", "https://x")),
+            )
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await get_chatbot_by_share_token(
+            "tok-1", "service-role-key", FailingPostgrestClient()
+        )
+
+
 async def test_update_chatbot_renames():
     postgrest = FakePostgrestClient(
         chatbot_row={"id": "cb-1", "name": "old", "powabase_agent_id": "agent-1"}
