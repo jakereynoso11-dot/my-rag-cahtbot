@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acme Co.</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f4f5f7;
+        color: #1a1d24;
+      }
+      header {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 3rem 1.5rem 1.5rem;
+      }
+      h1 {
+        font-size: 1.9rem;
+        margin: 0 0 0.5rem;
+      }
+      header p {
+        color: #6b7280;
+        line-height: 1.6;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto 4rem;
+        padding: 0 1.5rem;
+      }
+      .card {
+        background: #fff;
+        padding: 1.75rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        margin-bottom: 1.25rem;
+      }
+      .card h2 {
+        margin-top: 0;
+        font-size: 1.2rem;
+      }
+      .card p {
+        line-height: 1.6;
+        color: #3c4149;
+      }
+      .note {
+        max-width: 720px;
+        margin: 0 auto 2rem;
+        padding: 0 1.5rem;
+      }
+      .note p {
+        font-size: 0.85rem;
+        color: #8b909b;
+      }
+      code {
+        background: #eceef2;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Acme Co.</h1>
+      <p>
+        This is an ordinary demo website -- it has nothing to do with the chatbot
+        platform itself. It exists only to prove that the embeddable chat widget
+        works on someone else's site, the way it would on a real customer's page.
+      </p>
+    </header>
+    <main>
+      <div class="card">
+        <h2>About us</h2>
+        <p>
+          Acme Co. builds nothing in particular. This card is just filler content
+          to make the page look like a real site.
+        </p>
+      </div>
+      <div class="card">
+        <h2>The widget</h2>
+        <p>
+          Look for the chat bubble in the bottom-right corner of this page --
+          that's the whole integration. It was added with a single
+          <code>&lt;script&gt;</code> tag, visible in this page's source.
+        </p>
+      </div>
+    </main>
+    <div class="note">
+      <p>
+        Test with a real chatbot by adding <code>?chatbot=YOUR-SHARE-TOKEN</code>
+        to this page's URL (copy a share token from the 🔗 button in the
+        dashboard). Without one, the widget has nothing to load.
+      </p>
+    </div>
+
+    <!--
+      The actual embed. In a real integration this would be pasted as-is,
+      with a real share token in data-chatbot, into any page's HTML.
+      This demo reads the token from the URL only so it's testable without
+      editing the file.
+    -->
+    <script>
+      (function () {
+        var token = new URLSearchParams(location.search).get("chatbot") || "";
+        if (!token) return;
+        var s = document.createElement("script");
+        s.src = "/widget.js";
+        s.setAttribute("data-chatbot", token);
+        document.body.appendChild(s);
+      })();
+    </script>
+  </body>
+</html>
