@@ -3,6 +3,7 @@ import * as api from "../api";
 import CreateChatbotModal from "./CreateChatbotModal";
 import CreationProgressModal from "./CreationProgressModal";
 import EditChatbotModal from "./EditChatbotModal";
+import ShareChatbotModal from "./ShareChatbotModal";
 
 export default function AgentsPanel({ selectedId, onSelect, onAgentsLoaded }) {
   const [agents, setAgents] = useState([]);
@@ -12,19 +13,7 @@ export default function AgentsPanel({ selectedId, onSelect, onAgentsLoaded }) {
   const [submitting, setSubmitting] = useState(false);
   const [creationProgressError, setCreationProgressError] = useState("");
   const [editingAgent, setEditingAgent] = useState(null);
-  const [copiedId, setCopiedId] = useState(null);
-
-  async function handleCopyShareLink(shareToken, id) {
-    const url = `${window.location.origin}/share/${shareToken}`;
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      window.prompt("Copy this link:", url);
-      return;
-    }
-    setCopiedId(id);
-    setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1500);
-  }
+  const [sharingAgent, setSharingAgent] = useState(null);
 
   async function loadAgents(selectAfterId) {
     setLoading(true);
@@ -106,6 +95,10 @@ export default function AgentsPanel({ selectedId, onSelect, onAgentsLoaded }) {
         />
       )}
 
+      {sharingAgent && (
+        <ShareChatbotModal chatbot={sharingAgent} onClose={() => setSharingAgent(null)} />
+      )}
+
       {error && <p className="error-text">{error}</p>}
 
       {loading ? (
@@ -123,10 +116,10 @@ export default function AgentsPanel({ selectedId, onSelect, onAgentsLoaded }) {
               <span className="agent-actions">
                 <button
                   className="icon-button"
-                  title="Copy public chat link"
-                  onClick={() => handleCopyShareLink(a.share_token, a.id)}
+                  title="Share & embed"
+                  onClick={() => setSharingAgent(a)}
                 >
-                  {copiedId === a.id ? "✓" : "🔗"}
+                  🔗
                 </button>
                 <button
                   className="icon-button"

@@ -32,6 +32,10 @@ const STEPS = [
     placement: "right",
   },
   {
+    title: "5. Share it",
+    body: 'Click the 🔗 icon next to any agent for a public chat link anyone can open — no login needed — plus a one-line embed snippet to add a floating chat bubble to your own website. Each visitor gets their own private conversation.',
+  },
+  {
     title: "You're all set",
     body: "Create as many agents as you like — one per project, topic, or use case. You can rename, edit, or delete an agent anytime from the sidebar. Click \"? Help\" in the header to see this tour again.",
   },
