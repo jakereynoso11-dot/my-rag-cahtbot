@@ -20,7 +20,7 @@ function timeAgo(iso) {
 // Admin-facing view of every visitor conversation across the user's
 // chatbots -- separate from ChatWindow, which is the owner's own test chat
 // against a single selected chatbot.
-export default function InboxPanel({ onUnreadCountChange }) {
+export default function InboxPanel({ onUnreadCountChange, openSessionId, onOpenSessionHandled }) {
   const [chatbots, setChatbots] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +61,26 @@ export default function InboxPanel({ onUnreadCountChange }) {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatbotFilter, unreadOnly]);
+
+  // Jumping here from a toast notification: clear any filter that might be
+  // hiding the target conversation, then open it once it shows up in the
+  // freshly loaded list.
+  useEffect(() => {
+    if (!openSessionId) return;
+    setChatbotFilter("");
+    setUnreadOnly(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSessionId]);
+
+  useEffect(() => {
+    if (!openSessionId) return;
+    const match = sessions.find((s) => s.id === openSessionId);
+    if (match) {
+      openSession(match);
+      onOpenSessionHandled?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSessionId, sessions]);
 
   async function openSession(session) {
     setSelectedId(session.id);
