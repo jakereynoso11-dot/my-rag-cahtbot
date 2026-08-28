@@ -244,6 +244,39 @@ def test_list_public_session_messages_returns_rows():
     ]
 
 
+def test_public_chat_marks_new_session_as_public_origin():
+    postgrest = FakePostgrestClient()
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: FakePowabaseClient()
+
+    client.post(f"/public/chatbots/{SHARE_TOKEN}/chat", json={"message": "hello"})
+
+    session_inserts = [row for table, row, _ in postgrest.inserted_rows if table == "chat_sessions"]
+    assert session_inserts == [{"chatbot_id": "chatbot-1", "origin": "public"}]
+
+
+def test_public_chat_marks_session_unread_on_visitor_message_and_updates_preview():
+    postgrest = FakePostgrestClient()
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+    app.dependency_overrides[get_powabase_client] = lambda: FakePowabaseClient()
+
+    client.post(f"/public/chatbots/{SHARE_TOKEN}/chat", json={"message": "hello there"})
+
+    activity_updates = [
+        values
+        for table, filters, values, _ in postgrest.update_calls
+        if table == "chat_sessions" and "last_message_preview" in values
+    ]
+    assert len(activity_updates) == 2
+    # The visitor's message marks the session unread for the admin inbox...
+    assert activity_updates[0]["unread"] is True
+    assert activity_updates[0]["last_message_preview"] == "hello there"
+    # ...while the assistant's reply just refreshes the preview, since the
+    # admin still hasn't reviewed the exchange.
+    assert "unread" not in activity_updates[1]
+    assert activity_updates[1]["last_message_preview"] == "hi there"
+
+
 def test_list_public_session_messages_returns_404_for_foreign_session():
     postgrest = FakePostgrestClient(
         existing_sessions={"sess-other": {"id": "sess-other", "chatbot_id": "some-other-chatbot"}}

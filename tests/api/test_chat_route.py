@@ -61,6 +61,19 @@ class FakePostgrestClient:
 
     async def select(self, table, columns, *, filters=None, order=None, access_token):
         if table == "chat_sessions":
+            if "last_message_preview" in columns:
+                return [
+                    {
+                        "id": "sess-1",
+                        "chatbot_id": "chatbot-1",
+                        "title": None,
+                        "created_at": "2026-01-01T00:00:00Z",
+                        "last_message_at": "2026-01-02T00:00:00Z",
+                        "last_message_preview": "hi there",
+                        "unread": True,
+                        "chatbots": {"name": "Support Bot"},
+                    }
+                ]
             return [{"id": "sess-1", "title": None, "created_at": "2026-01-01T00:00:00Z"}]
         if table == "messages":
             return [
@@ -601,3 +614,60 @@ def test_delete_session_requires_auth():
     response = client.delete("/chat/sessions/sess-1")
 
     assert response.status_code == 401
+
+
+def test_list_inbox_returns_visitor_sessions_with_chatbot_name():
+    postgrest = FakePostgrestClient()
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.get("/chat/inbox", headers={"Authorization": "Bearer test-token"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == [
+        {
+            "id": "sess-1",
+            "chatbot_id": "chatbot-1",
+            "title": None,
+            "created_at": "2026-01-01T00:00:00Z",
+            "last_message_at": "2026-01-02T00:00:00Z",
+            "last_message_preview": "hi there",
+            "unread": True,
+            "chatbots": {"name": "Support Bot"},
+        }
+    ]
+
+
+def test_list_inbox_requires_auth():
+    response = client.get("/chat/inbox")
+
+    assert response.status_code == 401
+
+
+def test_mark_session_read_clears_unread_flag():
+    postgrest = FakePostgrestClient()
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.post(
+        "/chat/sessions/sess-1/read", headers={"Authorization": "Bearer test-token"}
+    )
+
+    assert response.status_code == 200
+    assert postgrest.update_calls == [
+        ("chat_sessions", {"id": "sess-1"}, {"unread": False})
+    ]
+
+
+def test_mark_session_read_returns_404_when_missing():
+    postgrest = FakePostgrestClient()
+    postgrest.update = lambda *a, **kw: _empty_update(postgrest, *a, **kw)
+    app.dependency_overrides[get_current_user] = lambda: {"id": "user-1"}
+    app.dependency_overrides[get_postgrest_client] = lambda: postgrest
+
+    response = client.post(
+        "/chat/sessions/not-mine/read", headers={"Authorization": "Bearer test-token"}
+    )
+
+    assert response.status_code == 404

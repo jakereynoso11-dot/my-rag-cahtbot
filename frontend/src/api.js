@@ -251,6 +251,28 @@ export async function deleteChatSession(id) {
   }
 }
 
+export async function listInbox({ chatbotId, unreadOnly } = {}) {
+  const params = new URLSearchParams();
+  if (chatbotId) params.set("chatbot_id", chatbotId);
+  if (unreadOnly) params.set("unread_only", "true");
+  const qs = params.toString();
+  const resp = await apiFetch(`/chat/inbox${qs ? `?${qs}` : ""}`);
+  if (!resp.ok) throw new Error("Could not load inbox");
+  return resp.json();
+}
+
+export async function markSessionRead(id) {
+  const resp = await apiFetch(`/chat/sessions/${id}/read`, { method: "POST" });
+  if (!resp.ok) throw new Error("Could not mark conversation read");
+  return resp.json();
+}
+
+export async function listSessionMessages(id) {
+  const resp = await apiFetch(`/chat/sessions/${id}/messages`);
+  if (!resp.ok) throw new Error("Could not load conversation");
+  return resp.json();
+}
+
 // Public chat link -- a visitor talking to a shared chatbot has no Powabase
 // login, so these call the backend directly instead of through apiFetch
 // (which would attach an Authorization header from whatever account, if
