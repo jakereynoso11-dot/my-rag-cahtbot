@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -16,6 +18,39 @@ from app.services.chatbot_provisioning import recreate_agent_for_chatbot
 from app.services.specialist_routing import choose_specialist
 
 router = APIRouter(prefix="/public/chatbots", tags=["public-chat"])
+
+_PREVIEW_LIMIT = 140
+
+
+def _preview(text: str) -> str:
+    """A one-line summary of a message for the admin inbox list."""
+    collapsed = " ".join(text.split())
+    if len(collapsed) <= _PREVIEW_LIMIT:
+        return collapsed
+    return collapsed[: _PREVIEW_LIMIT - 1].rstrip() + "…"
+
+
+async def _touch_session_activity(
+    postgrest: PostgrestClient,
+    session_id: str,
+    preview_text: str,
+    *,
+    mark_unread: bool,
+    service_role_key: str,
+) -> None:
+    """Keeps the inbox-facing fields on chat_sessions current. Visitor
+    messages set unread so the admin knows there's something new to review;
+    the assistant's reply just updates the preview/timestamp so the inbox
+    list shows the latest line of the conversation."""
+    values = {
+        "last_message_at": datetime.now(timezone.utc).isoformat(),
+        "last_message_preview": _preview(preview_text),
+    }
+    if mark_unread:
+        values["unread"] = True
+    await postgrest.update(
+        "chat_sessions", {"id": session_id}, values, access_token=service_role_key
+    )
 
 
 async def _find_session(
@@ -80,13 +115,22 @@ async def public_chat(
             session = candidate
     if session is None:
         session = await postgrest.insert(
-            "chat_sessions", {"chatbot_id": chatbot.id}, access_token=service_role_key
+            "chat_sessions",
+            {"chatbot_id": chatbot.id, "origin": "public"},
+            access_token=service_role_key,
         )
 
     await postgrest.insert(
         "messages",
         {"session_id": session["id"], "role": "user", "content": req.message},
         access_token=service_role_key,
+    )
+    await _touch_session_activity(
+        postgrest,
+        session["id"],
+        req.message,
+        mark_unread=True,
+        service_role_key=service_role_key,
     )
 
     session_agent_id = session.get("powabase_agent_id")
@@ -146,6 +190,13 @@ async def public_chat(
         "messages",
         {"session_id": session["id"], "role": "assistant", "content": result.answer},
         access_token=service_role_key,
+    )
+    await _touch_session_activity(
+        postgrest,
+        session["id"],
+        result.answer,
+        mark_unread=False,
+        service_role_key=service_role_key,
     )
 
     return ChatResponse(

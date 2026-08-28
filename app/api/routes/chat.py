@@ -247,6 +247,49 @@ async def list_sessions(
     )
 
 
+@router.get("/inbox")
+async def list_inbox(
+    chatbot_id: str | None = None,
+    unread_only: bool = False,
+    access_token: str = Depends(get_bearer_token),
+    user: dict = Depends(get_current_user),
+    postgrest: PostgrestClient = Depends(get_postgrest_client),
+):
+    """Every visitor conversation across the caller's chatbots (public share
+    link only -- not the owner's own test chats), most recently active
+    first. RLS on chat_sessions already scopes this to chatbots the caller
+    owns, so no explicit ownership filter is needed here."""
+    filters = {"origin": "public"}
+    if chatbot_id:
+        filters["chatbot_id"] = chatbot_id
+    if unread_only:
+        filters["unread"] = "true"
+
+    return await postgrest.select(
+        "chat_sessions",
+        "id,chatbot_id,title,created_at,last_message_at,last_message_preview,"
+        "unread,chatbots(name)",
+        filters=filters,
+        order="last_message_at.desc.nullslast",
+        access_token=access_token,
+    )
+
+
+@router.post("/sessions/{session_id}/read")
+async def mark_session_read(
+    session_id: str,
+    access_token: str = Depends(get_bearer_token),
+    user: dict = Depends(get_current_user),
+    postgrest: PostgrestClient = Depends(get_postgrest_client),
+):
+    rows = await postgrest.update(
+        "chat_sessions", {"id": session_id}, {"unread": False}, access_token=access_token
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return rows[0]
+
+
 @router.post("/sessions/{session_id}/documents", response_model=SessionDocumentResponse)
 async def upload_session_document(
     session_id: str,
